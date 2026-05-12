@@ -1,0 +1,273 @@
+#!/usr/bin/env python3
+"""linear-ticket — minimal CLI for Linear issue ops, used by an orchestrator
+agent for ticket-backed oversight of multi-agent work.
+
+Reads:
+  ~/.openclaw/linear.json  -> team_id, state IDs, api_key_secret_ref
+
+API key resolution order:
+  1. $LINEAR_API_KEY (override; useful for dev/CI)
+  2. `op read <api_key_secret_ref>` (1Password; default if api_key_secret_ref
+     is present in linear.json)
+
+If neither yields a key, the script exits non-zero with a message.
+
+Subcommands:
+  create   --title "..." [--description "..."] [--parent <id|key>] [--state <name>]
+  update   <id|key> [--state <name>] [--title "..."] [--description "..."]
+  comment  <id|key> --body "..."
+  get      <id|key>
+  list     [--state <name>] [--parent <id|key>] [--limit N]
+
+All output is JSON on stdout. Errors go to stderr with non-zero exit.
+
+State names map to UUIDs in ~/.openclaw/linear.json under `states`:
+  backlog | todo | in_progress | in_review | done | canceled | duplicate
+"""
+import argparse
+import json
+import os
+import subprocess
+import sys
+import urllib.request
+
+API_URL = "https://api.linear.app/graphql"
+CONFIG_PATH = os.path.expanduser("~/.openclaw/linear.json")
+
+
+def _resolve_api_key(cfg):
+    """Resolve API key. Order: env override, then 1Password via op."""
+    env_key = os.environ.get("LINEAR_API_KEY")
+    if env_key:
+        return env_key
+    ref = cfg.get("api_key_secret_ref")
+    if not ref:
+        sys.stderr.write(
+            "no api_key_secret_ref in linear.json and LINEAR_API_KEY not set\n"
+        )
+        sys.exit(2)
+    try:
+        out = subprocess.run(
+            ["op", "read", ref],
+            check=True, capture_output=True, text=True, timeout=15,
+        )
+        return out.stdout.strip()
+    except FileNotFoundError:
+        sys.stderr.write(
+            "op CLI not found; install 1Password CLI or set LINEAR_API_KEY\n"
+        )
+        sys.exit(2)
+    except subprocess.CalledProcessError as e:
+        sys.stderr.write(f"op read failed (exit {e.returncode}): {e.stderr.strip()}\n")
+        sys.exit(2)
+    except subprocess.TimeoutExpired:
+        sys.stderr.write("op read timed out\n")
+        sys.exit(2)
+
+
+def _load_config():
+    try:
+        with open(CONFIG_PATH) as f:
+            cfg = json.load(f)
+    except FileNotFoundError:
+        sys.stderr.write(
+            f"missing {CONFIG_PATH}. Copy linear.json.template and fill it in.\n"
+        )
+        sys.exit(2)
+    return _resolve_api_key(cfg), cfg
+
+
+def _gql(api_key, query, variables=None):
+    payload = json.dumps({"query": query, "variables": variables or {}}).encode()
+    req = urllib.request.Request(
+        API_URL,
+        data=payload,
+        headers={
+            "Authorization": api_key,
+            "Content-Type": "application/json",
+        },
+    )
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        body = json.loads(resp.read())
+    if "errors" in body:
+        sys.stderr.write(json.dumps(body["errors"], indent=2) + "\n")
+        sys.exit(2)
+    return body["data"]
+
+
+def _resolve_state_id(cfg, state_name):
+    state_name = state_name.lower().replace(" ", "_").replace("-", "_")
+    if state_name not in cfg["states"]:
+        sys.stderr.write(
+            f"unknown state: {state_name}. valid: {list(cfg['states'])}\n"
+        )
+        sys.exit(2)
+    return cfg["states"][state_name]
+
+
+def _resolve_issue_id(api_key, ref):
+    """Accepts a UUID id or a key like 'ENG-12'. Returns the UUID."""
+    if "-" in ref and not ref.startswith("urn"):
+        # treat as key
+        data = _gql(
+            api_key,
+            "query($key: String!) { issue(id: $key) { id identifier title } }",
+            {"key": ref},
+        )
+        issue = data.get("issue")
+        if not issue:
+            sys.stderr.write(f"issue not found: {ref}\n")
+            sys.exit(2)
+        return issue["id"]
+    return ref
+
+
+def cmd_create(args):
+    api_key, cfg = _load_config()
+    state_id = (
+        _resolve_state_id(cfg, args.state) if args.state else cfg["states"]["todo"]
+    )
+    inp = {
+        "teamId": cfg["team_id"],
+        "title": args.title,
+        "description": args.description or "",
+        "stateId": state_id,
+    }
+    if args.parent:
+        inp["parentId"] = _resolve_issue_id(api_key, args.parent)
+    data = _gql(
+        api_key,
+        """mutation($input: IssueCreateInput!) {
+          issueCreate(input: $input) {
+            success
+            issue { id identifier title url state { name } parent { identifier } }
+          }
+        }""",
+        {"input": inp},
+    )
+    issue = data["issueCreate"]["issue"]
+    print(json.dumps(issue, indent=2))
+
+
+def cmd_update(args):
+    api_key, cfg = _load_config()
+    issue_id = _resolve_issue_id(api_key, args.ref)
+    inp = {}
+    if args.state:
+        inp["stateId"] = _resolve_state_id(cfg, args.state)
+    if args.title:
+        inp["title"] = args.title
+    if args.description is not None:
+        inp["description"] = args.description
+    if not inp:
+        sys.stderr.write("nothing to update\n")
+        sys.exit(2)
+    data = _gql(
+        api_key,
+        """mutation($id: String!, $input: IssueUpdateInput!) {
+          issueUpdate(id: $id, input: $input) {
+            success
+            issue { id identifier title url state { name } }
+          }
+        }""",
+        {"id": issue_id, "input": inp},
+    )
+    print(json.dumps(data["issueUpdate"]["issue"], indent=2))
+
+
+def cmd_comment(args):
+    api_key, _ = _load_config()
+    issue_id = _resolve_issue_id(api_key, args.ref)
+    data = _gql(
+        api_key,
+        """mutation($input: CommentCreateInput!) {
+          commentCreate(input: $input) {
+            success
+            comment { id body url }
+          }
+        }""",
+        {"input": {"issueId": issue_id, "body": args.body}},
+    )
+    print(json.dumps(data["commentCreate"]["comment"], indent=2))
+
+
+def cmd_get(args):
+    api_key, _ = _load_config()
+    data = _gql(
+        api_key,
+        """query($key: String!) {
+          issue(id: $key) {
+            id identifier title description url
+            state { name type }
+            parent { identifier title }
+            children { nodes { identifier title state { name } } }
+            comments { nodes { id body createdAt user { name } } }
+          }
+        }""",
+        {"key": args.ref},
+    )
+    if not data.get("issue"):
+        sys.stderr.write(f"issue not found: {args.ref}\n")
+        sys.exit(2)
+    print(json.dumps(data["issue"], indent=2))
+
+
+def cmd_list(args):
+    api_key, cfg = _load_config()
+    filters = {"team": {"id": {"eq": cfg["team_id"]}}}
+    if args.state:
+        filters["state"] = {"id": {"eq": _resolve_state_id(cfg, args.state)}}
+    if args.parent:
+        parent_uuid = _resolve_issue_id(api_key, args.parent)
+        filters["parent"] = {"id": {"eq": parent_uuid}}
+    data = _gql(
+        api_key,
+        """query($filter: IssueFilter, $first: Int!) {
+          issues(filter: $filter, first: $first, orderBy: updatedAt) {
+            nodes { identifier title url state { name } parent { identifier } }
+          }
+        }""",
+        {"filter": filters, "first": args.limit},
+    )
+    print(json.dumps(data["issues"]["nodes"], indent=2))
+
+
+def main():
+    p = argparse.ArgumentParser(prog="linear-ticket")
+    sub = p.add_subparsers(dest="cmd", required=True)
+
+    pc = sub.add_parser("create")
+    pc.add_argument("--title", required=True)
+    pc.add_argument("--description")
+    pc.add_argument("--parent", help="parent issue id or key")
+    pc.add_argument("--state", help="state name (default: todo)")
+    pc.set_defaults(func=cmd_create)
+
+    pu = sub.add_parser("update")
+    pu.add_argument("ref", help="issue id or key")
+    pu.add_argument("--state")
+    pu.add_argument("--title")
+    pu.add_argument("--description")
+    pu.set_defaults(func=cmd_update)
+
+    pm = sub.add_parser("comment")
+    pm.add_argument("ref")
+    pm.add_argument("--body", required=True)
+    pm.set_defaults(func=cmd_comment)
+
+    pg = sub.add_parser("get")
+    pg.add_argument("ref")
+    pg.set_defaults(func=cmd_get)
+
+    pl = sub.add_parser("list")
+    pl.add_argument("--state")
+    pl.add_argument("--parent")
+    pl.add_argument("--limit", type=int, default=20)
+    pl.set_defaults(func=cmd_list)
+
+    args = p.parse_args()
+    args.func(args)
+
+
+if __name__ == "__main__":
+    main()

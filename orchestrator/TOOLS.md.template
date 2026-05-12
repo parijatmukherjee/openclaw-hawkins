@@ -1,0 +1,67 @@
+# TOOLS.md — Orchestrator local notes (template)
+
+What's wired up on this specific machine. This file is host-specific — fill in your own values where placeholders appear.
+
+## Host
+
+- **Machine:** `<hostname>`
+- **OS:** `<distro + version>`
+- **User:** `<user>` (sudo: `<yes/no/passwordless>`)
+- **Workspace:** `~/.openclaw/workspace/`
+- **Gateway port:** `18789` (or whatever you configured)
+- **Remote access:** `<https://your-tailnet.ts.net/ | http://localhost via SSH tunnel | LAN | none>`
+
+## Models
+
+- **Default:** `<provider/model>` — orchestrator's voice and judgment
+- **Fallback:** `<provider/model>` — if primary is unhealthy
+
+## Specialists (Orchestrator-mode dispatch)
+
+Update this table to match the specialists you've actually created.
+
+| Agent | Scope | Dispatch command |
+|-------|-------|------------------|
+| `system-agent` | Linux/Unix sysadmin | `openclaw agent --agent system-agent --message "..." --json --timeout 300` |
+| `code-agent` | Software dev, debugging | `openclaw agent --agent code-agent --message "..." --json --timeout 600` |
+| `research-agent` | Web research, comparisons | `openclaw agent --agent research-agent --message "..." --json --timeout 300` |
+| `data-agent` | Data parsing, analysis | `openclaw agent --agent data-agent --message "..." --json --timeout 180` |
+| `comm-agent` | Email/chat drafts | `openclaw agent --agent comm-agent --message "..." --json --timeout 120` |
+| `vision-agent` | Image analysis, OCR | `openclaw agent --agent vision-agent --message "..." --json --timeout 120` |
+
+## Rules
+
+- Trivial requests (≤30s): handle inline, no dispatch.
+- Multi-step / long-running: dispatch via `openclaw agent --agent <id>` (executed through your `exec` tool).
+- Acknowledge before dispatching. Parse the JSON response. Synthesize, don't dump.
+- See [AGENTS.md](AGENTS.md) for full dispatch protocol and latency bands.
+
+## Tools available
+
+- **`exec` / `bash`** — Primary dispatch mechanism + simple one-liners.
+- **`cron`** — Native OpenClaw scheduler (`openclaw cron add/list/edit/rm`).
+- **`web_search` / `web_fetch`** — Quick lookups. Deep research → `research-agent`.
+- **`message`** — Chat channel writes (when configured).
+- **`browser`** — Headless browser control (when enabled).
+- _(Add any other tools your install enables — taskflow, emctl, msgraph, op, etc.)_
+
+**Deprecated (legacy subagent pattern, do not use for new work):** `sessions_spawn`, `subagents`, `sessions_yield`. Use the cross-agent dispatch above instead.
+
+## Integrations (fill in if you use them)
+
+- **Email:** `<your email account(s) + CLI tool(s)>`
+- **Calendar:** `<your calendar tool + default timezone>`
+- **Chat channels:** `<discord / telegram / slack / etc.>`
+- **Notion / Obsidian / etc.:** `<wiring + API key references>`
+
+## Conventions
+
+- **System work** (apt, cron, configs, services): dispatch to `system-agent`. The orchestrator does not act on the host directly.
+- **Outbound communication, payments, third-party API calls that cost money:** the relevant specialist drafts; the orchestrator asks the operator before sending.
+- **Secrets:** never expose tokens, keys, or sensitive paths in replies, tickets, or comments. Truncate or redact specialist replies before logging.
+
+## Optional: Linear ticket oversight
+
+If [LINEAR.md](LINEAR.md) is in this workspace and `~/.openclaw/linear.json` is configured, every non-trivial dispatch creates a ticket the operator can watch on the Linear board. Skip tickets for trivial inline-handled requests.
+
+CLI: `linear-ticket {create,update,comment,get,list} ...`

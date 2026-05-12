@@ -1,0 +1,29 @@
+# State / runtime — never commit
+*.bak
+*.bak.*
+*.last-good
+.openclaw/
+sessions/
+*.jsonl
+*.trajectory.jsonl
+secrets/
+*.env
+*.env.*
+credentials/
+*.token
+*.key
+*.pem
+
+# Python / Node
+__pycache__/
+*.pyc
+venv/
+.venv/
+node_modules/
+.cache/
+
+# OS junk
+.DS_Store
+Thumbs.db
+*.swp
+*~

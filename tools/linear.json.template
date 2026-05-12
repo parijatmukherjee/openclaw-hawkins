@@ -1,0 +1,24 @@
+{
+  "_comment": "Copy this to ~/.openclaw/linear.json and fill in your values. Fetch the UUIDs via the GraphQL query in orchestrator/LINEAR.md.",
+
+  "workspace_url_key": "your-workspace-slug",
+  "team_id": "00000000-0000-0000-0000-000000000000",
+  "team_key": "ENG",
+  "team_name": "Engineering",
+
+  "_api_key_options": "Pick ONE of the two methods below.",
+  "_method_1_op": "Recommended: store the key in 1Password and put the reference here.",
+  "api_key_secret_ref": "op://<vault-id-or-name>/<item-id-or-title>/credential",
+
+  "_method_2_env": "Alternative: set LINEAR_API_KEY in your shell env and remove the api_key_secret_ref line above.",
+
+  "states": {
+    "backlog":     "00000000-0000-0000-0000-000000000000",
+    "todo":        "00000000-0000-0000-0000-000000000000",
+    "in_progress": "00000000-0000-0000-0000-000000000000",
+    "in_review":   "00000000-0000-0000-0000-000000000000",
+    "done":        "00000000-0000-0000-0000-000000000000",
+    "canceled":    "00000000-0000-0000-0000-000000000000",
+    "duplicate":   "00000000-0000-0000-0000-000000000000"
+  }
+}
