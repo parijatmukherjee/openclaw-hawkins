@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="banner.png" alt="openclaw-orchestra" width="100%">
+</p>
+
 # 🦞 openclaw-orchestra
 
 [![GitHub stars](https://img.shields.io/github/stars/parijatmukherjee/openclaw-orchestra?style=social)](https://github.com/parijatmukherjee/openclaw-orchestra/stargazers)
