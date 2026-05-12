@@ -1,6 +1,11 @@
 # 🦞 openclaw-orchestra
 
+[![GitHub stars](https://img.shields.io/github/stars/parijatmukherjee/openclaw-orchestra?style=social)](https://github.com/parijatmukherjee/openclaw-orchestra/stargazers)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 **🎼 Drop-in multi-agent orchestration pattern for [OpenClaw](https://openclaw.ai).**
+
+> ⭐ **Find this useful?** Hit the star button up top — it helps other OpenClaw operators discover the pattern, and it tells me whether to keep iterating on it. Thank you. 🙏
 
 One conversational orchestrator + six isolated specialist agents (🔧 `system`, ⌨️ `code`, 🔍 `research`, 📊 `data`, ✉️ `comm`, 👁️ `vision`). The operator only talks to the orchestrator. Specialists do the heavy lifting in their own workspaces, with their own memory and tools. Optional 📋 Linear-backed ticket oversight gives you a live board of what the swarm is working on.
 
@@ -211,6 +216,14 @@ openclaw-orchestra/
 - 🚦 **Parallel cap.** No more than 2 specialist dispatches in flight at once. Sequential by default.
 - 🩹 **Failure handling.** Specialist timeouts and errors get surfaced in plain language with next-step options. No raw stack traces at the operator.
 - 🔒 **No secrets** in tickets, comments, or specialist replies passed through. Truncate or redact before logging.
+
+---
+
+## ⭐ One more thing
+
+If `openclaw-orchestra` saved you from a tangled single-agent setup, **please [star the repo](https://github.com/parijatmukherjee/openclaw-orchestra/stargazers)** — it's the only signal I get that the pattern is landing for people, and it surfaces it to other OpenClaw operators. 🙏
+
+PRs welcome too. Especially: async dispatch, per-agent skill scoping, alternative ticket backends (GitHub Issues / Notion / Plane), and adapters for other agent runtimes.
 
 ---
 
