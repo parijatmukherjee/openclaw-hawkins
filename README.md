@@ -2,7 +2,7 @@
   <img src="banner.png" alt="openclaw-orchestra" width="100%">
 </p>
 
-# 🦞 openclaw-orchestra
+# 🦞 openclaw-orchestra — Multi-Agent Orchestration for OpenClaw (Claude-Powered Autonomous Workflows)
 
 [![GitHub stars](https://img.shields.io/github/stars/parijatmukherjee/openclaw-orchestra?style=social)](https://github.com/parijatmukherjee/openclaw-orchestra/stargazers)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
