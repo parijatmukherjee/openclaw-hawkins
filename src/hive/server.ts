@@ -177,13 +177,14 @@ function parseConnect(body: unknown): ConnectInput {
   const topic = body.topic;
   const content = body.content;
   const sourceAgent = body.source_agent ?? body.sourceAgent;
-  if (typeof topic !== "string" || topic.length === 0) {
+  // Whitespace-only values are rejected — they'd persist as useless rows.
+  if (typeof topic !== "string" || topic.trim().length === 0) {
     throw httpError(400, "bad_topic", "topic must be a non-empty string");
   }
-  if (typeof content !== "string" || content.length === 0) {
+  if (typeof content !== "string" || content.trim().length === 0) {
     throw httpError(400, "bad_content", "content must be a non-empty string");
   }
-  if (typeof sourceAgent !== "string" || sourceAgent.length === 0) {
+  if (typeof sourceAgent !== "string" || sourceAgent.trim().length === 0) {
     throw httpError(400, "bad_source_agent", "source_agent must be a non-empty string");
   }
   const input: ConnectInput = { topic, content, sourceAgent };
@@ -210,7 +211,7 @@ function parseConnect(body: unknown): ConnectInput {
 function parseEvolve(body: unknown): EvolveInput {
   if (!isObject(body)) throw httpError(400, "bad_body", "JSON body required");
   const content = body.content;
-  if (typeof content !== "string" || content.length === 0) {
+  if (typeof content !== "string" || content.trim().length === 0) {
     throw httpError(400, "bad_content", "content must be a non-empty string");
   }
   const out: EvolveInput = { content };

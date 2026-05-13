@@ -25,8 +25,8 @@ If a phase fails or the run is aborted:
 `vines set-state <orch-id> failed` + `linear-ticket update <parent> --state "Canceled"`.
 
 If the host restarts mid-run, the next boot runs **`vines recover`** once
-to discover anything still in the unfinished states (`init` | `planning`
-| `executing`). The output names `nextPendingChild` per orchestration so
+to discover anything still in the unfinished states (`init`, `planning`,
+or `executing`). The output names `nextPendingChild` per orchestration so
 the Nexus can resume.
 
 ## Worked example (Sensitivity Check positive)

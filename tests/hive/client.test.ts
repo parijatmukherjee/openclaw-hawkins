@@ -144,10 +144,9 @@ describe("HiveTendril", () => {
     await expect(t.getFragment("abc")).rejects.toThrow(/hive HTTP 500/);
   });
 
-  it("returns empty object for empty success body", async () => {
+  it("throws on empty success body (every Hive endpoint promises JSON)", async () => {
     const fetchImpl = vi.fn().mockResolvedValue(new Response("", { status: 200 }));
     const t = new HiveTendril({ url: "http://h:8765", fetchImpl });
-    const res = await t.healthz();
-    expect(res).toEqual({});
+    await expect(t.healthz()).rejects.toThrow(/empty body/);
   });
 });

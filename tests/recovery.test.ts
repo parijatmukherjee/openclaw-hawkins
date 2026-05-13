@@ -4,7 +4,9 @@ import type { LinearClient } from "../src/linear-client.js";
 import {
   DEFAULT_DONE_STATE_NAMES,
   isLinearOrphaned,
+  isLookupFailed,
   isResumable,
+  lookupFailed,
   markFailedIfOrphaned,
   orphaned,
   resumable,
@@ -56,21 +58,39 @@ describe("scanRecovery", () => {
     expect(report.items).toEqual([]);
     expect(resumable(report)).toEqual([]);
     expect(orphaned(report)).toEqual([]);
+    expect(lookupFailed(report)).toEqual([]);
   });
 
-  it("surfaces rows without a Linear parent id", async () => {
+  it("rows without a Linear parent id get lookupStatus=no_parent_id", async () => {
     const report = await scanRecovery(fakeLedger([row({ linearParentId: null })]), fakeLinear());
     expect(report.items).toHaveLength(1);
     const item = report.items[0];
+    expect(item.lookupStatus).toBe("no_parent_id");
     expect(item.parentIssue).toBeNull();
-    expect(item.children).toEqual([]);
     expect(isLinearOrphaned(item)).toBe(false);
+    expect(isLookupFailed(item)).toBe(false);
   });
 
-  it("marks orphaned when Linear has no record of the parent", async () => {
+  it("marks orphaned when Linear definitively returns no issue", async () => {
     const linear = fakeLinear({ getIssue: vi.fn().mockResolvedValue(null) });
     const report = await scanRecovery(fakeLedger([row()]), linear);
+    expect(report.items[0].lookupStatus).toBe("missing");
     expect(orphaned(report)).toHaveLength(1);
+    expect(lookupFailed(report)).toHaveLength(0);
+  });
+
+  it("treats Linear getIssue errors as lookup_failed (NOT orphaned)", async () => {
+    const linear = fakeLinear({
+      getIssue: vi.fn().mockRejectedValue(new Error("API down")),
+    });
+    const report = await scanRecovery(fakeLedger([row()]), linear);
+    const item = report.items[0];
+    expect(item.lookupStatus).toBe("lookup_failed");
+    expect(item.lookupError).toContain("API down");
+    expect(isLinearOrphaned(item)).toBe(false);
+    expect(isLookupFailed(item)).toBe(true);
+    expect(lookupFailed(report)).toHaveLength(1);
+    expect(orphaned(report)).toHaveLength(0);
   });
 
   it("finds last completed + next pending children", async () => {
@@ -87,6 +107,7 @@ describe("scanRecovery", () => {
     });
     const report = await scanRecovery(fakeLedger([row()]), linear);
     const item = report.items[0];
+    expect(item.lookupStatus).toBe("ok");
     expect(item.lastCompletedChild?.identifier).toBe("ENG-3");
     expect(item.nextPendingChild?.identifier).toBe("ENG-4");
     expect(isResumable(item)).toBe(true);
@@ -103,21 +124,15 @@ describe("scanRecovery", () => {
     expect(report.items[0].lastCompletedChild?.identifier).toBe("ENG-3");
   });
 
-  it("Linear getIssue failure is swallowed (item appears orphaned)", async () => {
-    const linear = fakeLinear({
-      getIssue: vi.fn().mockRejectedValue(new Error("API down")),
-    });
-    const report = await scanRecovery(fakeLedger([row()]), linear);
-    expect(isLinearOrphaned(report.items[0])).toBe(true);
-  });
-
-  it("Linear listChildren failure yields empty children list", async () => {
+  it("Linear listChildren failure yields empty children list + lookupError", async () => {
     const linear = fakeLinear({
       getIssue: vi.fn().mockResolvedValue(issue(1)),
       listChildren: vi.fn().mockRejectedValue(new Error("hiccup")),
     });
     const report = await scanRecovery(fakeLedger([row()]), linear);
     expect(report.items[0].children).toEqual([]);
+    expect(report.items[0].lookupStatus).toBe("ok"); // parent fetched fine
+    expect(report.items[0].lookupError).toContain("hiccup");
     expect(isResumable(report.items[0])).toBe(false);
   });
 
@@ -128,6 +143,7 @@ describe("scanRecovery", () => {
     });
     const report = await scanRecovery(fakeLedger([row()]), linear);
     expect(report.items[0].children).toEqual([]);
+    expect(report.items[0].lookupError).toBe("string-rejection");
   });
 
   it("custom done-state set is honoured", async () => {
@@ -148,7 +164,7 @@ describe("scanRecovery", () => {
 });
 
 describe("markFailedIfOrphaned", () => {
-  it("marks orphaned items as failed", async () => {
+  it("marks lookupStatus=missing items as failed", async () => {
     const ledger = fakeLedger();
     const item = {
       ledgerRow: row(),
@@ -156,11 +172,29 @@ describe("markFailedIfOrphaned", () => {
       children: [],
       lastCompletedChild: null,
       nextPendingChild: null,
+      lookupStatus: "missing" as const,
     };
     expect(await markFailedIfOrphaned(ledger, item)).toBe(true);
     expect(
       (ledger as unknown as { setState: ReturnType<typeof vi.fn> }).setState,
     ).toHaveBeenCalled();
+  });
+
+  it("does NOT mark lookup_failed items as failed (transient errors stay live)", async () => {
+    const ledger = fakeLedger();
+    const item = {
+      ledgerRow: row(),
+      parentIssue: null,
+      children: [],
+      lastCompletedChild: null,
+      nextPendingChild: null,
+      lookupStatus: "lookup_failed" as const,
+      lookupError: "API down",
+    };
+    expect(await markFailedIfOrphaned(ledger, item)).toBe(false);
+    expect(
+      (ledger as unknown as { setState: ReturnType<typeof vi.fn> }).setState,
+    ).not.toHaveBeenCalled();
   });
 
   it("no-ops for items with a parent issue", async () => {
@@ -171,6 +205,7 @@ describe("markFailedIfOrphaned", () => {
       children: [],
       lastCompletedChild: null,
       nextPendingChild: null,
+      lookupStatus: "ok" as const,
     };
     expect(await markFailedIfOrphaned(ledger, item)).toBe(false);
   });
@@ -183,6 +218,7 @@ describe("markFailedIfOrphaned", () => {
       children: [],
       lastCompletedChild: null,
       nextPendingChild: null,
+      lookupStatus: "no_parent_id" as const,
     };
     expect(await markFailedIfOrphaned(ledger, item)).toBe(false);
   });

@@ -32,7 +32,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
   - `src/recovery.ts` — §4.2 ledger ↔ Linear cross-reference.
   - `vines` CLI binary:
     `init-db / status / recover / triage / start / set-state /
-    attach-linear-parent`.
+attach-linear-parent`.
 
 - **VECNA (Versatile Entity for Contextual Network Awareness) — the
   Hive.** Sidecar Express service for inter-agent knowledge sharing.
@@ -67,8 +67,8 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 - **Operator entrypoints.**
   - `Makefile`: `install / build / test / coverage / smoke / lint /
-    format / setup-agents / bootstrap-db / bootstrap-vines-db /
-    bootstrap-vecna-db / vecna-serve / clean`.
+format / setup-agents / bootstrap-db / bootstrap-vines-db /
+bootstrap-vecna-db / vecna-serve / clean`.
   - `scripts/bootstrap-vines-db.sh`, `scripts/bootstrap-vecna-db.sh`.
   - `examples/vecna.service` — hardened systemd user unit
     (`ProtectSystem=strict`, `NoNewPrivileges=true`).

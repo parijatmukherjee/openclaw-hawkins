@@ -58,5 +58,11 @@ export function loadVecnaClientConfig(env: NodeJS.ProcessEnv = process.env): Cli
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
     throw new Error(`VECNA_TIMEOUT_MS must be a positive number; got '${env.VECNA_TIMEOUT_MS}'`);
   }
-  return { url, authToken: env.VECNA_AUTH_TOKEN ?? null, timeoutMs };
+  // Match the server-side validation: an empty `VECNA_AUTH_TOKEN` is
+  // suspicious — fail loud rather than silently authenticating with `""`.
+  const authToken = env.VECNA_AUTH_TOKEN ?? null;
+  if (authToken !== null && authToken.length === 0) {
+    throw new Error("VECNA_AUTH_TOKEN, when set, must be non-empty");
+  }
+  return { url, authToken, timeoutMs };
 }

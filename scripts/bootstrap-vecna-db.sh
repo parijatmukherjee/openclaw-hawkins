@@ -14,13 +14,33 @@ userinfo=""; if [[ "$url" == *@* ]]; then userinfo="${url%%@*}"; url="${url#*@}"
 hostport="${url%%/*}"; db="${url#*/}"; db="${db%%\?*}"
 host="${hostport%%:*}"; port="3306"
 [[ "$hostport" == *:* ]] && port="${hostport##*:}"
+
+# Percent-decode userinfo so URLs like mariadb://u%40v:p%21ss@host/db
+# parse as u@v / p!ss. Matches the Node loader.
+urldecode() {
+  local s="${1//+/ }"
+  printf '%b' "${s//%/\\x}"
+}
+
 user="${MARIADB_USER:-}"; password="${MARIADB_PASSWORD:-}"
 if [ -n "$userinfo" ]; then
-  user="${userinfo%%:*}"
-  [[ "$userinfo" == *:* ]] && password="${userinfo#*:}"
+  user="$(urldecode "${userinfo%%:*}")"
+  [[ "$userinfo" == *:* ]] && password="$(urldecode "${userinfo#*:}")"
 fi
-[ -z "$db" ] && { echo "error: MARIADB_URL must include /<database>" >&2; exit 2; }
-[ -z "$user" ] || [ -z "$password" ] && { echo "error: missing MARIADB_USER / MARIADB_PASSWORD" >&2; exit 2; }
+if [ -z "$db" ]; then
+  echo "error: MARIADB_URL must include /<database>" >&2
+  exit 2
+fi
+# Bash precedence: '||' binds tighter than '&&' would not — write the
+# guards as an explicit `if` so each missing var fails its own check.
+if [ -z "$user" ]; then
+  echo "error: missing MARIADB_USER (or embed user in URL)" >&2
+  exit 2
+fi
+if [ -z "$password" ]; then
+  echo "error: missing MARIADB_PASSWORD (or embed password in URL)" >&2
+  exit 2
+fi
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 schema="$script_dir/../vecna/schema.sql"

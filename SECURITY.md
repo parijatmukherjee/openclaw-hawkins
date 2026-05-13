@@ -43,8 +43,12 @@ The following are **out of scope** but always welcome as regular issues:
 - **SQL injection.** All queries use parameter binding. Never call
   `conn.query()` with string concatenation in a contribution.
 - **Untrusted Linear responses.** The Linear client validates `success`
-  flags and surfaces failures as `RuntimeError`. The recovery scan tolerates
-  malformed or partial responses without crashing the orchestrator.
+  flags and surfaces failures as a thrown `Error` whose message starts
+  with `"Linear "` (transport, HTTP, or GraphQL error). The recovery
+  scan tolerates malformed or partial responses without crashing the
+  orchestrator, and distinguishes "issue truly missing" from "lookup
+  failed transiently" so it doesn't auto-fail an orchestration during a
+  Linear outage.
 
 ## What VINES does **not** defend against
 

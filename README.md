@@ -309,7 +309,7 @@ Each badge at the top of this README maps to a real, enforced gate:
 | Badge                         | What it guarantees                                                                                                                                          |
 | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 🟢 **CI**                     | Every push and PR runs the full pipeline on Node 20 and 22. PRs can't merge red.                                                                            |
-| 📊 **Coverage**               | `vitest --coverage` with v8 — gated at **statements ≥ 95 %, functions ≥ 95 %, branches ≥ 90 %, lines ≥ 95 %**. Falling below fails CI.                      |
+| 📊 **Coverage**               | `vitest --coverage` with v8 — gated at **statements ≥ 95 %, functions ≥ 95 %, branches ≥ 88 %, lines ≥ 95 %**. Falling below fails CI.                      |
 | 📘 **TypeScript: strict**     | `tsconfig.json` enables `strict`, `noUnusedLocals`, `noUnusedParameters`, `exactOptionalPropertyTypes`, `useUnknownInCatchVariables`, `noImplicitOverride`. |
 | 💅 **Code style: Prettier**   | `npm run format:check` runs in CI.                                                                                                                          |
 | 🧹 **Lint: ESLint**           | Flat config with `typescript-eslint` _recommended-type-checked_. PRs with lint errors fail CI.                                                              |

@@ -155,7 +155,13 @@ async function defaultRunner(
       stderr?: Buffer | string;
       code?: number | string;
     };
-    if (typeof e.code === "string") throw err; // ENOENT etc. — propagate
+    // Propagate ENOENT (and any other string-code error) so callers can
+    // distinguish "binary missing" from "binary ran and failed".
+    if (typeof e.code === "string") throw err;
+    // Propagate timeouts so `isTimeoutError` in dispatchSpecialist fires.
+    // Node sets `killed=true` and `signal=SIGTERM` when execFile timeout
+    // expires; without rethrowing, callers see a generic "failed".
+    if (e.killed === true || e.signal === "SIGTERM") throw err;
     return {
       stdout: e.stdout?.toString() ?? "",
       stderr: e.stderr?.toString() ?? "",

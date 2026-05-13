@@ -41,12 +41,23 @@ if [[ "$hostport" == *:* ]]; then
   port="${hostport##*:}"
 fi
 
+# Decode percent-encoded `userinfo` so URLs like
+#   mariadb://u%40v:p%21ss@host/db
+# parse as `u@v` / `p!ss` rather than the literal escape sequences.
+# Matches the Node loader's behaviour.
+urldecode() {
+  local s="${1//+/ }"
+  printf '%b' "${s//%/\\x}"
+}
+
 user="${MARIADB_USER:-}"
 password="${MARIADB_PASSWORD:-}"
 if [ -n "$userinfo" ]; then
-  user="${userinfo%%:*}"
+  raw_user="${userinfo%%:*}"
+  user="$(urldecode "$raw_user")"
   if [[ "$userinfo" == *:* ]]; then
-    password="${userinfo#*:}"
+    raw_pass="${userinfo#*:}"
+    password="$(urldecode "$raw_pass")"
   fi
 fi
 
@@ -54,8 +65,12 @@ if [ -z "$db" ]; then
   echo "error: MARIADB_URL must include /<database>" >&2
   exit 2
 fi
-if [ -z "$user" ] || [ -z "$password" ]; then
-  echo "error: missing MARIADB_USER / MARIADB_PASSWORD (or embed in URL)" >&2
+if [ -z "$user" ]; then
+  echo "error: missing MARIADB_USER (or embed user in URL)" >&2
+  exit 2
+fi
+if [ -z "$password" ]; then
+  echo "error: missing MARIADB_PASSWORD (or embed password in URL)" >&2
   exit 2
 fi
 

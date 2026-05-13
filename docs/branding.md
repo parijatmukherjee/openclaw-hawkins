@@ -54,8 +54,8 @@ The specialist workers. Each handles one domain.
 
 The "Upside Down" of the system. Memory that survives sessions.
 
-- **Codebase term:** the `vines_ledger` table (state, owned by VINES) and
-  the `vecna_hive` table (knowledge, owned by VECNA — to be added).
+- **Codebase term:** the `orchestration_ledger` table (state, owned by
+  VINES) and the `vecna_hive` table (knowledge, owned by VECNA).
 - **Brand term:** _the Hive_.
 - **Key verb:** agents don't _save data_; they _connect to the Hive_.
 
@@ -127,7 +127,7 @@ Things motif:
 - **Agent ids** (`system-agent`, `code-agent`, …) — stable for OpenClaw.
 - **Env var names** (`MARIADB_URL`, `LINEAR_API_KEY`, …) — subsystem-agnostic.
 - **CLI binary names** (`vines`, soon `vecna`) — short, ergonomic.
-- **Table names** (`vines_ledger`, `vecna_hive`) — descriptive.
+- **Table names** (`orchestration_ledger`, `vecna_hive`) — descriptive.
 - **Spec documents** (`vines/spec.md`, soon `vecna/spec.md`) — technical
   contracts. The branding overlay lives in narrative docs, not in the
   specifications it would muddy.

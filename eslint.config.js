@@ -1,4 +1,4 @@
-// ESLint flat config for openclaw-orchestra (ESM, TypeScript).
+// ESLint flat config for openclaw-hawkins (ESM, TypeScript).
 import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 import globals from "globals";

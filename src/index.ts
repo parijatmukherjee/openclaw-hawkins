@@ -35,10 +35,13 @@ export {
   scanRecovery,
   resumable,
   orphaned,
+  lookupFailed,
   isResumable,
   isLinearOrphaned,
+  isLookupFailed,
   markFailedIfOrphaned,
   DEFAULT_DONE_STATE_NAMES,
+  type LookupStatus,
   type RecoveryItem,
   type RecoveryReport,
 } from "./recovery.js";

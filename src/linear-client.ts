@@ -6,7 +6,8 @@
  *      transition state).
  *   2. Reads during §4.2 recovery (fetch issue + list children).
  *
- * Uses the built-in `fetch` available in Node ≥18 — no third-party HTTP lib.
+ * Uses the built-in `fetch` available in Node ≥20 (the package's engines
+ * floor) — no third-party HTTP lib.
  */
 
 import { loadLinearApiKey } from "./config.js";

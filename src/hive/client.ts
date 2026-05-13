@@ -53,9 +53,12 @@ export class HiveTendril {
     topic: string,
     opts: RecallOptions = {},
   ): Promise<{ topic: string; count: number; fragments: Fragment[] }> {
+    // Forward optional knobs as-is so the server can validate. Using
+    // `!== undefined` (not truthy) so `limit=0` round-trips and gets a
+    // proper 400 from the server, instead of being silently dropped.
     const params = new URLSearchParams();
-    if (opts.ticket) params.set("ticket", opts.ticket);
-    if (opts.limit) params.set("limit", String(opts.limit));
+    if (opts.ticket !== undefined) params.set("ticket", opts.ticket);
+    if (opts.limit !== undefined) params.set("limit", String(opts.limit));
     const q = params.toString();
     const path = `/v1/recall/${encodeURIComponent(topic)}${q ? `?${q}` : ""}`;
     return this.request("GET", path);
@@ -63,8 +66,8 @@ export class HiveTendril {
 
   async recallAsContext(topic: string, opts: RecallOptions = {}): Promise<string> {
     const params = new URLSearchParams({ format: "context" });
-    if (opts.ticket) params.set("ticket", opts.ticket);
-    if (opts.limit) params.set("limit", String(opts.limit));
+    if (opts.ticket !== undefined) params.set("ticket", opts.ticket);
+    if (opts.limit !== undefined) params.set("limit", String(opts.limit));
     return this.requestText("GET", `/v1/recall/${encodeURIComponent(topic)}?${params.toString()}`);
   }
 
@@ -73,7 +76,7 @@ export class HiveTendril {
     limit?: number,
   ): Promise<{ query: string; count: number; fragments: Fragment[] }> {
     const params = new URLSearchParams({ query });
-    if (limit) params.set("limit", String(limit));
+    if (limit !== undefined) params.set("limit", String(limit));
     return this.request("GET", `/v1/search?${params.toString()}`);
   }
 
@@ -96,7 +99,12 @@ export class HiveTendril {
 
   private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
     const text = await this.requestText(method, path, body);
-    if (text.length === 0) return {} as T;
+    // An empty body is itself a contract violation (every Hive endpoint
+    // promises JSON). Surface it loudly rather than handing the caller
+    // back `{}` and letting them blow up later on missing fields.
+    if (text.length === 0) {
+      throw new Error(`hive returned an empty body for ${method} ${path}`);
+    }
     try {
       return JSON.parse(text) as T;
     } catch {

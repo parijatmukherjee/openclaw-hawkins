@@ -156,10 +156,13 @@ function requireString(args, key, where) {
   return v;
 }
 
-function optionalString(args, key) {
+function optionalString(args, key, { allowEmpty = false } = {}) {
   const v = args[key];
   if (v === undefined) return undefined;
-  if (typeof v !== "string" || v.length === 0) {
+  if (typeof v !== "string") {
+    die(`--${key}, if provided, must be a string`);
+  }
+  if (!allowEmpty && v.length === 0) {
     die(`--${key}, if provided, must be a non-empty string`);
   }
   return v;
@@ -197,7 +200,8 @@ async function cmdUpdate(args) {
   if (typeof args.ref !== "string" || !args.ref) die("update requires an issue id or key");
   const stateName = optionalString(args, "state");
   const title = optionalString(args, "title");
-  const description = optionalString(args, "description");
+  // Permit `--description ""` so operators can clear an existing description.
+  const description = optionalString(args, "description", { allowEmpty: true });
   const issueId = await resolveIssueId(apiKey, args.ref);
   const input = {};
   if (stateName) input.stateId = resolveStateId(cfg, stateName);

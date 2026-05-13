@@ -109,12 +109,17 @@ level up, in the orchestrator agent's `AGENTS.md`.
 ## Testing
 
 We use [vitest](https://vitest.dev) with v8 coverage. The CI thresholds
-(see `vitest.config.ts`) are:
+(authoritative in `vitest.config.ts`) are:
 
 - statements ≥ **95 %**
 - functions ≥ **95 %**
-- branches ≥ **90 %**
+- branches ≥ **88 %**
 - lines ≥ **95 %**
+
+(branches is set slightly lower than the rest because the `vecna serve`
+command — Express `app.listen` + signal-shutdown loop — is genuinely
+hard to test hermetically. Everywhere else, branches sits comfortably
+above 90 %.)
 
 PRs that drop coverage below these gates will fail CI. Please add tests for
 new code paths. Mock the network (`fetch`) and the database (the `mariadb`

@@ -312,7 +312,9 @@ function requireNonEmptyString(
   field: string,
   maxLen?: number,
 ): asserts value is string {
-  if (typeof value !== "string" || value.length === 0) {
+  // Reject whitespace-only values too — otherwise a fragment with
+  // `topic="   "` slips through and produces useless rows.
+  if (typeof value !== "string" || value.trim().length === 0) {
     throw new Error(`${field} must be a non-empty string`);
   }
   if (maxLen !== undefined && value.length > maxLen) {
