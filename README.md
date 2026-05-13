@@ -104,7 +104,7 @@ openclaw agent --agent system-agent --message "Introduce yourself in one line." 
 
 **Optional add-ons:**
 
-- 🔐 `op` (1Password CLI) + a **Linear** account if you want ticket oversight.
+- 📋 A **Linear** account (any plan) if you want ticket oversight. The CLI reads its API key from `$LINEAR_API_KEY` by default; if you'd rather keep the key in 1Password, the [`op` CLI](https://developer.1password.com/docs/cli/) is a supported fallback (see `orchestrator/LINEAR.md`). Neither `op` nor a 1Password account is required.
 - 🟢 **Node ≥ 20** + a **MariaDB** instance (local or cloud, TLS supported including self-signed via `MARIADB_SSL=insecure`) if you want the **ASO** durable-state layer.
 
 ---
@@ -197,7 +197,8 @@ What you get:
 Install (after MariaDB is available — local or cloud):
 
 ```bash
-npm install                              # or `make install`
+make install                             # npm ci / npm install
+make build                               # compile TypeScript → dist/
 export MARIADB_URL=mariadb://h:3306/orchestra
 export MARIADB_USER=orchestra
 export MARIADB_PASSWORD=...
