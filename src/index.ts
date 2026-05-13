@@ -1,10 +1,13 @@
 /**
- * openclaw-hawkins — VINES.
+ * openclaw-hawkins — public API surface.
  *
- * The default entry point exposes the library API. The CLI lives at
- * `./cli.js` and is wired through the `bin` field in `package.json`.
+ * Two subsystems live in this package:
  *
- * See `vines/spec.md` for the contract this package implements.
+ *   - VINES — durable orchestration state. See `vines/spec.md`.
+ *   - VECNA — Hive knowledge service. See `vecna/spec.md`.
+ *
+ * The CLIs (`vines`, `vecna`) are wired via the `bin` field in
+ * `package.json`. Node embedders import the classes below.
  */
 
 export {
@@ -51,3 +54,19 @@ export {
   type SubTask,
   type SubTaskOutcome,
 } from "./types.js";
+
+// VECNA Hive — knowledge service.
+export { HiveStore } from "./hive/store.js";
+export { HiveTendril } from "./hive/client.js";
+export { createServer as createHiveServer } from "./hive/server.js";
+export { loadVecnaServerConfig, loadVecnaClientConfig } from "./hive/config.js";
+export {
+  isImportance,
+  type ConnectInput,
+  type ConnectResult,
+  type EvolveInput,
+  type EvolveResult,
+  type Fragment,
+  type Importance,
+  type RecallOptions,
+} from "./hive/types.js";

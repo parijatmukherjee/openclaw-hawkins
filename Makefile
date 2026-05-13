@@ -78,12 +78,23 @@ setup-agents: ## Create the 6 OpenClaw specialist agents on this host.
 	./scripts/setup.sh
 
 .PHONY: bootstrap-db
-bootstrap-db: ## Apply vines/schema.sql via the configured MARIADB_URL.
+bootstrap-db: bootstrap-vines-db bootstrap-vecna-db ## Apply both VINES + VECNA schemas.
+
+.PHONY: bootstrap-vines-db
+bootstrap-vines-db: ## Apply vines/schema.sql via the configured MARIADB_URL.
 	./scripts/bootstrap-vines-db.sh
 
+.PHONY: bootstrap-vecna-db
+bootstrap-vecna-db: ## Apply vecna/schema.sql via the configured MARIADB_URL.
+	./scripts/bootstrap-vecna-db.sh
+
 .PHONY: init-db
-init-db: build ## Apply vines/schema.sql via the Node CLI (alternative to bootstrap-db).
+init-db: build ## Apply vines/schema.sql via the Node CLI (alternative to bootstrap-vines-db).
 	node dist/cli.js init-db
+
+.PHONY: vecna-serve
+vecna-serve: build ## Start the VECNA Nexus (HTTP API) on $$VECNA_PORT (default 8765).
+	node dist/hive/cli.js serve
 
 ## ----------------------------------------------------------------------------
 ## House-keeping

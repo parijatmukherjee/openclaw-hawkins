@@ -8,6 +8,32 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Added
 
+- **VECNA (Versatile Entity for Contextual Network Awareness)** — Hive
+  knowledge-sharing subsystem. Sidecar Express REST service backed by the
+  same MariaDB instance VINES uses:
+  - `vecna/spec.md` — canonical contract.
+  - `vecna/schema.sql` — `vecna_hive` table with topic + fulltext indexes.
+  - `src/hive/store.ts` — `HiveStore` CRUD (connect with dedup, recall
+    with decay-aware ranking, search, evolve, fragment fetch).
+  - `src/hive/server.ts` — Express app:
+    `/v1/{healthz,connect,recall/:topic,search,fragments/:id,evolve/:id}`.
+    Bearer auth optional via `VECNA_AUTH_TOKEN`.
+  - `src/hive/client.ts` — `HiveTendril` Node client.
+  - `src/hive/cli.ts` — `vecna` CLI binary (serve / connect / recall /
+    search / evolve / fragment / healthz).
+- `scripts/bootstrap-vecna-db.sh` shell helper for applying
+  `vecna/schema.sql`.
+- `make vecna-serve`, `make bootstrap-vecna-db`; `make bootstrap-db` now
+  applies both VINES and VECNA schemas.
+- `orchestrator/AGENTS.md` gains an "Optional: shared knowledge via
+  VECNA" section showing the recall / connect / evolve patterns
+  LLM-driven agents run through their `exec` tool.
+- VECNA smoke test (`tests/smoke/hive.smoke.test.ts`) — env-gated DB
+  roundtrip.
+- `express` runtime dep, `supertest` dev dep for HTTP tests.
+
+### Added
+
 - **`vines` CLI lifecycle subcommands** so a shell-driven orchestrator agent
   can run the spec §3.2 protocol end-to-end without writing Node glue:
   - `vines start --objective "..." [--linear-parent <ENG-N>] [--state <s>]`

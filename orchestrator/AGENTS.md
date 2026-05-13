@@ -181,10 +181,10 @@ If the operator installed [VINES](../vines/spec.md) (the Node/TypeScript library
 
 The five commands you'll use, mapped to the spec §3.2 protocol:
 
-| Step                           | Command                                                                                             | Purpose                                                                                                                                |
-| ------------------------------ | --------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Step                           | Command                                                                                               | Purpose                                                                                                                                |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | 3.1 — triage                   | `vines triage --seconds <n> --domain <id> [--domain <id> …]`                                          | Returns `{"activate": bool, "reason": "..."}`. If false, handle inline and stop.                                                       |
-| 3.2 step 2 — create ledger row | `vines start --objective "..." [--linear-parent <ENG-N>] [--state planning]`                          | Prints the orchestration UUID on stdout. Capture it: `ORCH=$(vines start …)`                                                             |
+| 3.2 step 2 — create ledger row | `vines start --objective "..." [--linear-parent <ENG-N>] [--state planning]`                          | Prints the orchestration UUID on stdout. Capture it: `ORCH=$(vines start …)`                                                           |
 | 3.2 step 5 — transition        | `vines set-state <orchestration-id> <init\|planning\|executing\|success\|failed> [--last-agent <id>]` | Move the orchestration through its lifecycle.                                                                                          |
 | (post-hoc) — link Linear later | `vines attach-linear-parent <orchestration-id> <ENG-N>`                                               | If you started the row before the Linear ticket existed.                                                                               |
 | 4.2 — recovery scan            | `vines recover`                                                                                       | JSON envelope with `unfinishedTotal`, `resumableTotal`, and per-item `lastCompletedChild` / `nextPendingChild`. Run this once at boot. |
@@ -220,6 +220,35 @@ vines set-state "$ORCH" success
 On failure: `vines set-state "$ORCH" failed` and `linear-ticket update "$PARENT" --state "Canceled"`.
 
 After a crash, run `vines recover` and resume from each `nextPendingChild`. The spec at [`vines/spec.md`](../vines/spec.md) is authoritative if anything in this doc drifts. Full integration recipe (including the env vars to source and the Node embedder path) is in [`INSTALL.md §9`](../INSTALL.md).
+
+## Optional: shared knowledge via VECNA (the Hive)
+
+If the operator installed VECNA (`vecna serve` running locally), use it to remember across orchestrations. The Hive is a separate REST service — your `exec` tool shells out to `vecna` to read and write it. The full contract lives in [`../vecna/spec.md`](../vecna/spec.md).
+
+Two-line integration pattern:
+
+```bash
+# Before dispatching a non-trivial sub-task, recall prior context on the topic:
+CTX=$(vecna recall "<topic>" --ticket "$PARENT" --format context)
+# Then append $CTX to the --message you send to the specialist.
+
+# After the specialist returns something durable (a fix, a workaround, a constraint),
+# push it back to the Hive so future Pulses can use it:
+vecna connect --topic "<topic>" \
+  --content "<one or two sentences the future-you will thank you for>" \
+  --source-agent "<which Tendril learned this>" \
+  --importance 4 \
+  --linear-ref "$PARENT"
+```
+
+Rules of thumb:
+
+- **importance 5** for vital lessons that override age (production rules, contract constraints).
+- **importance 4** for solid findings worth surfacing on recall.
+- **importance 1–3** for transient notes; they decay after 6 months.
+- If you later discover a fragment is wrong, run `vecna evolve <fragment-id> --content "<corrected>"` — VECNA deprecates the old and links the new on the same topic.
+
+The Hive is **optional**: when `VECNA_URL` is unset or `vecna healthz` fails, skip the recall/connect calls and proceed without them.
 
 ## Memory
 
