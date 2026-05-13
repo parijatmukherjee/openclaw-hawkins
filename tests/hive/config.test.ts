@@ -1,0 +1,91 @@
+import { afterEach, describe, expect, it } from "vitest";
+import { loadVecnaServerConfig, loadVecnaClientConfig } from "../../src/hive/config.js";
+
+const VARS = [
+  "MARIADB_URL",
+  "MARIADB_USER",
+  "MARIADB_PASSWORD",
+  "MARIADB_SSL",
+  "VECNA_HOST",
+  "VECNA_PORT",
+  "VECNA_AUTH_TOKEN",
+  "VECNA_DEDUP_WINDOW_MIN",
+  "VECNA_URL",
+  "VECNA_TIMEOUT_MS",
+];
+
+afterEach(() => {
+  for (const k of VARS) delete process.env[k];
+});
+
+function withDb(): void {
+  process.env.MARIADB_URL = "mariadb://h:3306/db";
+  process.env.MARIADB_USER = "u";
+  process.env.MARIADB_PASSWORD = "p";
+}
+
+describe("loadVecnaServerConfig", () => {
+  it("populates defaults", () => {
+    withDb();
+    const cfg = loadVecnaServerConfig();
+    expect(cfg.host).toBe("127.0.0.1");
+    expect(cfg.port).toBe(8765);
+    expect(cfg.authToken).toBeNull();
+    expect(cfg.dedupWindowMinutes).toBe(5);
+  });
+
+  it("respects overrides", () => {
+    withDb();
+    process.env.VECNA_HOST = "0.0.0.0";
+    process.env.VECNA_PORT = "9000";
+    process.env.VECNA_AUTH_TOKEN = "tok";
+    process.env.VECNA_DEDUP_WINDOW_MIN = "0";
+    const cfg = loadVecnaServerConfig();
+    expect(cfg.host).toBe("0.0.0.0");
+    expect(cfg.port).toBe(9000);
+    expect(cfg.authToken).toBe("tok");
+    expect(cfg.dedupWindowMinutes).toBe(0);
+  });
+
+  it("rejects invalid port", () => {
+    withDb();
+    process.env.VECNA_PORT = "999999";
+    expect(() => loadVecnaServerConfig()).toThrow(/VECNA_PORT/);
+  });
+
+  it("rejects negative dedup window", () => {
+    withDb();
+    process.env.VECNA_DEDUP_WINDOW_MIN = "-1";
+    expect(() => loadVecnaServerConfig()).toThrow(/VECNA_DEDUP_WINDOW_MIN/);
+  });
+
+  it("rejects empty auth token — fail loud rather than silently disable auth", () => {
+    withDb();
+    process.env.VECNA_AUTH_TOKEN = "";
+    expect(() => loadVecnaServerConfig()).toThrow(/VECNA_AUTH_TOKEN/);
+  });
+});
+
+describe("loadVecnaClientConfig", () => {
+  it("populates defaults", () => {
+    const cfg = loadVecnaClientConfig();
+    expect(cfg.url).toBe("http://127.0.0.1:8765");
+    expect(cfg.authToken).toBeNull();
+    expect(cfg.timeoutMs).toBe(10_000);
+  });
+
+  it("strips trailing slashes", () => {
+    process.env.VECNA_URL = "http://hive.local:8765//";
+    expect(loadVecnaClientConfig().url).toBe("http://hive.local:8765");
+  });
+
+  it("rejects bad URL", () => {
+    process.env.VECNA_URL = "not a url";
+    expect(() => loadVecnaClientConfig()).toThrow(/VECNA_URL/);
+  });
+
+  it("rejects bad timeout", () => {
+    process.env.VECNA_TIMEOUT_MS = "0";
+    expect(() => loadVecnaClientConfig()).toThrow(/VECNA_TIMEOUT_MS/);
+  });
+});

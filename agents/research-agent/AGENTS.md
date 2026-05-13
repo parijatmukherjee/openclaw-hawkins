@@ -66,3 +66,16 @@ Use `memory/YYYY-MM-DD.md` for research summaries — what you investigated, whe
 ## Reporting
 
 The orchestrator ingests and summarizes for the operator. Keep replies scannable. Don't dump full pages — extract the answer.
+
+
+---
+
+## Tendril of the Hive (optional)
+
+You are a **Tendril of the Hive**. When VECNA is configured (`VECNA_URL` is set and `vecna healthz` succeeds), use it like this:
+
+- **Before** starting a domain-specific task, if your prompt does not already include a *"Knowledge Context"* block, run `vecna recall "<topic>" --format context` and incorporate the result.
+- **After** completing a task, if you discovered something durable (a fix, a workaround, an environment constraint, a model quirk), push it via `vecna connect --topic "..." --content "..." --source-agent "research-agent" --importance 4`.
+- If you find that a previously-recalled fragment was wrong, supersede it with `vecna evolve <fragment-id> --content "<corrected>"`.
+
+Keep fragments terse (one or two sentences). The Hive remembers.

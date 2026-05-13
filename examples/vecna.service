@@ -1,0 +1,53 @@
+# vecna.service — systemd user unit for the VECNA Hive Nexus.
+#
+# Install:
+#   mkdir -p ~/.config/systemd/user
+#   cp examples/vecna.service ~/.config/systemd/user/vecna.service
+#   # Edit the file: update paths + EnvironmentFile to fit your host.
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now vecna.service
+#   journalctl --user -u vecna.service -f
+#
+# Linger note: if you want the service to keep running after you log
+# out of the machine, enable user-lingering once as root:
+#   sudo loginctl enable-linger "$USER"
+
+[Unit]
+Description=VECNA Hive Nexus (openclaw-hawkins)
+Documentation=https://github.com/parijatmukherjee/openclaw-hawkins
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/openclaw-hawkins
+
+# The 0600-perm env file holds MARIADB_URL / MARIADB_USER /
+# MARIADB_PASSWORD / VECNA_AUTH_TOKEN. Never commit it.
+EnvironmentFile=%h/.config/openclaw-hawkins/vecna.env
+
+# Run the compiled bundle. `npm run build` must have been run at install
+# time. For a global install via npm, replace this with `vecna serve`.
+ExecStart=/usr/bin/env node %h/openclaw-hawkins/dist/hive/cli.js serve
+
+# Graceful shutdown — the CLI handles SIGTERM, drains the connection
+# pool, and exits 0.
+KillSignal=SIGTERM
+TimeoutStopSec=15
+Restart=on-failure
+RestartSec=5
+
+# Lock the service down. Adjust if your operator path differs.
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=%h/.config/openclaw-hawkins
+NoNewPrivileges=true
+
+# Optional hardening for shared hosts:
+# CapabilityBoundingSet=
+# RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+# SystemCallFilter=@system-service
+
+[Install]
+WantedBy=default.target

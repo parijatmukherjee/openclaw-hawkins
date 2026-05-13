@@ -45,6 +45,30 @@ Update this table to match the specialists you've actually created.
 - **`browser`** — Headless browser control (when enabled).
 - _(Add any other tools your install enables — taskflow, emctl, msgraph, op, etc.)_
 
+### Shell-callable openclaw-hawkins tools
+
+These ship with the repo and are invoked via your `exec` tool. Each is
+self-contained — no language runtime to learn beyond what you already use.
+
+| Command | Purpose | Activation condition |
+|---|---|---|
+| `openclaw agent --agent <id> --message "..." --json --timeout <s>` | Dispatch a specialist. The contract for every non-trivial request. | Always available. |
+| `linear-ticket {create\|update\|comment\|get\|list}` | Linear ticket lifecycle (parent + sub-tickets). See [LINEAR.md](LINEAR.md). | Optional. Configured via `~/.openclaw/linear.json`. |
+| `vines triage --seconds <n> --domain <id> …` | Spec §3.1 activation gate. JSON `{activate, reason}`. | Optional. Requires VINES library installed. |
+| `vines start --objective "..." [--linear-parent <ENG-N>] [--state <s>]` | Create the `orchestration_ledger` row. Prints the orchestration UUID. | Optional. Requires MariaDB. |
+| `vines set-state <orch-id> <state> [--last-agent <id>]` | Move the orchestration through `init → planning → executing → success\|failed`. | Optional. |
+| `vines attach-linear-parent <orch-id> <ENG-N>` | Backfill `linear_parent_id` after the fact. | Optional. |
+| `vines recover` | Cross-reference unfinished ledger rows with Linear (spec §4.2). Run once at boot. | Optional. |
+| `vines status [--limit N]` | Recent ledger rows for human inspection. | Optional. |
+| `vecna healthz` | Liveness probe against the Hive Nexus. | Optional. Requires `vecna serve` running. |
+| `vecna recall <topic> [--ticket <ENG-N>] [--limit N] [--format json\|context]` | Pull prior knowledge fragments before dispatching. `--format context` returns a string ready to inject into a specialist's `--message`. | Optional. Requires Hive. |
+| `vecna connect --topic ... --content "..." --source-agent <id> [--importance 1-5] [--linear-ref <ENG-N>]` | Push a fragment to the Hive after a Tendril returns a durable lesson. | Optional. |
+| `vecna evolve <fragment-id> --content "<corrected>"` | Supersede a fragment with a corrected one (atomic deprecate-old + insert-new). | Optional. |
+| `vecna search --query "..." [--limit N]` | Full-text search across all non-deprecated fragments. Useful for the research-tendril when no clear topic is known. | Optional. |
+| `vecna fragment <id>` | Fetch a single fragment by UUID — debugging / lineage. | Optional. |
+
+The end-to-end ticket + ledger sequence is in [AGENTS.md](AGENTS.md) and [`../INSTALL.md` §9.6](../INSTALL.md). The VECNA recall/connect pattern is in [AGENTS.md](AGENTS.md) §"Optional: shared knowledge via VECNA" and [`../INSTALL.md` §10](../INSTALL.md).
+
 **Deprecated (legacy subagent pattern, do not use for new work):** `sessions_spawn`, `subagents`, `sessions_yield`. Use the cross-agent dispatch above instead.
 
 ## Integrations (fill in if you use them)

@@ -1,0 +1,89 @@
+{
+  "name": "openclaw-hawkins",
+  "version": "0.1.0",
+  "description": "openclaw-hawkins — multi-agent orchestration for OpenClaw. Ships VINES (durable orchestration state in MariaDB) and the supervisor pattern with Linear-backed ticket oversight.",
+  "license": "MIT",
+  "author": "Parijat Mukherjee",
+  "homepage": "https://github.com/parijatmukherjee/openclaw-hawkins",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/parijatmukherjee/openclaw-hawkins.git"
+  },
+  "bugs": {
+    "url": "https://github.com/parijatmukherjee/openclaw-hawkins/issues"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "vines": "./dist/cli.js",
+    "vecna": "./dist/hive/cli.js"
+  },
+  "files": [
+    "dist",
+    "vines/spec.md",
+    "vines/schema.sql",
+    "vecna/spec.md",
+    "vecna/schema.sql",
+    "scripts/bootstrap-vines-db.sh",
+    "scripts/bootstrap-vecna-db.sh",
+    "README.md",
+    "INSTALL.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "openclaw",
+    "agentic",
+    "orchestration",
+    "linear",
+    "mariadb",
+    "swarm",
+    "supervisor",
+    "vines",
+    "vecna",
+    "hawkins",
+    "knowledge-sharing",
+    "hive-mind"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "watch": "tsc -p tsconfig.json --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage",
+    "smoke": "vitest run --config vitest.smoke.config.ts",
+    "lint": "eslint src tests",
+    "format": "prettier --write \"{src,tests}/**/*.{ts,tsx,json,md}\"",
+    "format:check": "prettier --check \"{src,tests}/**/*.{ts,tsx,json,md}\"",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist coverage .vitest-cache",
+    "prepublishOnly": "npm run clean && npm run lint && npm run test && npm run build"
+  },
+  "dependencies": {
+    "commander": "^12.1.0",
+    "express": "^4.21.0",
+    "mariadb": "^3.4.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.0.0",
+    "@types/supertest": "^6.0.2",
+    "@vitest/coverage-v8": "^2.1.0",
+    "eslint": "^9.9.0",
+    "globals": "^15.9.0",
+    "prettier": "^3.3.0",
+    "supertest": "^7.0.0",
+    "typescript": "^5.5.0",
+    "typescript-eslint": "^8.0.0",
+    "vitest": "^2.1.0"
+  }
+}

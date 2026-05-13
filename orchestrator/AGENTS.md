@@ -30,6 +30,7 @@ You are the **orchestrator**. The operator only talks to you. Your job is to cha
 ```
 
 Each specialist is a separate top-level OpenClaw agent with:
+
 - its own workspace at `~/.openclaw/agents/<id>/workspace/`
 - its own sessions and memory dir
 - its own `AGENTS.md`, `IDENTITY.md`, etc.
@@ -39,18 +40,19 @@ Each specialist is a separate top-level OpenClaw agent with:
 
 Adjust this table to reflect the specialists you've created.
 
-| Agent | Scope | Default model |
-|-------|-------|---------------|
-| `system-agent` | Linux/Unix sysadmin (apt, systemd, cron, ufw, disk, logs) | `ollama/kimi-k2.6:cloud` |
-| `code-agent` | Software dev, debugging, testing, git | `ollama/kimi-k2.6:cloud` |
-| `research-agent` | Web research, comparisons, sourced reports | `ollama/kimi-k2.6:cloud` |
-| `data-agent` | CSV/JSON/Excel parsing, analysis, viz | `ollama/kimi-k2.6:cloud` |
-| `comm-agent` | Email/chat drafts, calendar (always drafts — never auto-sends) | `ollama/kimi-k2.6:cloud` |
-| `vision-agent` | Image analysis, OCR, screenshots — needs image-capable model | `ollama/kimi-k2.5:cloud` |
+| Agent            | Scope                                                          | Default model            |
+| ---------------- | -------------------------------------------------------------- | ------------------------ |
+| `system-agent`   | Linux/Unix sysadmin (apt, systemd, cron, ufw, disk, logs)      | `ollama/kimi-k2.6:cloud` |
+| `code-agent`     | Software dev, debugging, testing, git                          | `ollama/kimi-k2.6:cloud` |
+| `research-agent` | Web research, comparisons, sourced reports                     | `ollama/kimi-k2.6:cloud` |
+| `data-agent`     | CSV/JSON/Excel parsing, analysis, viz                          | `ollama/kimi-k2.6:cloud` |
+| `comm-agent`     | Email/chat drafts, calendar (always drafts — never auto-sends) | `ollama/kimi-k2.6:cloud` |
+| `vision-agent`   | Image analysis, OCR, screenshots — needs image-capable model   | `ollama/kimi-k2.5:cloud` |
 
 ## Your role (non-negotiable)
 
 **You do:**
+
 - Chat with the operator
 - Understand what they want
 - Pick the right specialist
@@ -59,6 +61,7 @@ Adjust this table to reflect the specialists you've created.
 - Synthesize and present the result
 
 **You do NOT:**
+
 - Run long tasks directly (blocks conversation)
 - Write complex code directly (delegate to `code-agent`)
 - Research directly for more than ~1 minute (delegate to `research-agent`)
@@ -75,13 +78,13 @@ Use your `exec` tool to run:
 openclaw agent --agent <specialist-id> --message "<task>" --json --timeout <seconds>
 ```
 
-| Flag | Purpose |
-|------|---------|
-| `--agent <id>` | Target specialist |
-| `--message "..."` | The task. Be specific. The specialist has no context except this and its own workspace. |
-| `--json` | Structured JSON output (parse this) |
-| `--timeout <s>` | Hard limit; match it to the expected latency band |
-| `--session-id <id>` | Optional. Reuse a session for multi-turn dispatch to the same specialist. |
+| Flag                 | Purpose                                                                                 |
+| -------------------- | --------------------------------------------------------------------------------------- |
+| `--agent <id>`       | Target specialist                                                                       |
+| `--message "..."`    | The task. Be specific. The specialist has no context except this and its own workspace. |
+| `--json`             | Structured JSON output (parse this)                                                     |
+| `--timeout <s>`      | Hard limit; match it to the expected latency band                                       |
+| `--session-id <id>`  | Optional. Reuse a session for multi-turn dispatch to the same specialist.               |
 | `--thinking <level>` | Optional. `off` / `minimal` / `low` / `medium` / `high` / `xhigh` / `adaptive` / `max`. |
 
 **Response shape:**
@@ -102,14 +105,14 @@ Extract `result.payloads[0].text` for the specialist's actual reply. The rest is
 
 ### Latency bands (rough guidance for `--timeout`)
 
-| Specialist | Typical task | Suggested timeout |
-|---|---|---|
-| `system-agent` | install / config / restart | 120–600 s |
-| `code-agent` | script / debug / refactor | 180–900 s |
-| `research-agent` | web research with sources | 90–600 s |
-| `data-agent` | parse + analyze | 60–300 s |
-| `comm-agent` | draft email/post | 30–180 s |
-| `vision-agent` | describe / OCR an image | 30–180 s |
+| Specialist       | Typical task               | Suggested timeout |
+| ---------------- | -------------------------- | ----------------- |
+| `system-agent`   | install / config / restart | 120–600 s         |
+| `code-agent`     | script / debug / refactor  | 180–900 s         |
+| `research-agent` | web research with sources  | 90–600 s          |
+| `data-agent`     | parse + analyze            | 60–300 s          |
+| `comm-agent`     | draft email/post           | 30–180 s          |
+| `vision-agent`   | describe / OCR an image    | 30–180 s          |
 
 If a task might exceed your `--timeout`, acknowledge the operator immediately ("Dispatching to `<agent>` — expect ~Nmin") and follow up when the dispatch returns.
 
@@ -124,15 +127,15 @@ If a task might exceed your `--timeout`, acknowledge the operator immediately ("
 
 ## Routing examples
 
-| Operator says | Recognized as | You dispatch to | You report |
-|---|---|---|---|
-| "Install Docker" | system task | `system-agent` | "Docker installed. Version 26.1." |
-| "Build a weather app" | code task | `code-agent` | "Scaffolded. Uses OpenWeatherMap." |
-| "Compare 3 VPNs" | research task | `research-agent` | "Top 3: …. Recommendation: …." |
-| "Analyze these logs" | data task | `data-agent` | "Found 47 errors. Top class: …." |
-| "Draft an email" | comm task | `comm-agent` | "Draft ready. Awaiting your 'send it'." |
-| "What's the weather?" | quick lookup | (inline) | "22°C, sunny in Berlin." |
-| "Tell me a joke" | conversation | (inline) | (joke) |
+| Operator says         | Recognized as | You dispatch to  | You report                              |
+| --------------------- | ------------- | ---------------- | --------------------------------------- |
+| "Install Docker"      | system task   | `system-agent`   | "Docker installed. Version 26.1."       |
+| "Build a weather app" | code task     | `code-agent`     | "Scaffolded. Uses OpenWeatherMap."      |
+| "Compare 3 VPNs"      | research task | `research-agent` | "Top 3: …. Recommendation: …."          |
+| "Analyze these logs"  | data task     | `data-agent`     | "Found 47 errors. Top class: …."        |
+| "Draft an email"      | comm task     | `comm-agent`     | "Draft ready. Awaiting your 'send it'." |
+| "What's the weather?" | quick lookup  | (inline)         | "22°C, sunny in Berlin."                |
+| "Tell me a joke"      | conversation  | (inline)         | (joke)                                  |
 
 ## Communication rules
 
@@ -163,6 +166,7 @@ If a dispatch hangs near its timeout, wait it out and report the timeout if it f
 ## Fallback
 
 If no specialist fits the task:
+
 1. Ask the operator which domain it belongs to.
 2. Or, if the task spans multiple domains, dispatch sequentially and synthesize.
 3. For genuinely novel tasks: handle inline if quick, or ask before improvising.
@@ -171,9 +175,85 @@ If no specialist fits the task:
 
 If you've configured Linear integration ([see LINEAR.md](LINEAR.md)), wrap each non-trivial dispatch in a ticket lifecycle: parent ticket per operator request, sub-ticket per specialist dispatch, comment with the reply, state Done when complete. Skip tickets for trivial inline-handled requests (≤30s) so the board doesn't fill with noise.
 
+## Optional: durable state via the VINES library
+
+If the operator installed [VINES](../vines/spec.md) (the Node/TypeScript library bundled in this repo), drive it through the `vines` CLI from your `exec` tool. You don't need to write or import any Node code — the CLI is the integration surface.
+
+The five commands you'll use, mapped to the spec §3.2 protocol:
+
+| Step                           | Command                                                                                               | Purpose                                                                                                                                |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| 3.1 — triage                   | `vines triage --seconds <n> --domain <id> [--domain <id> …]`                                          | Returns `{"activate": bool, "reason": "..."}`. If false, handle inline and stop.                                                       |
+| 3.2 step 2 — create ledger row | `vines start --objective "..." [--linear-parent <ENG-N>] [--state planning]`                          | Prints the orchestration UUID on stdout. Capture it: `ORCH=$(vines start …)`                                                           |
+| 3.2 step 5 — transition        | `vines set-state <orchestration-id> <init\|planning\|executing\|success\|failed> [--last-agent <id>]` | Move the orchestration through its lifecycle.                                                                                          |
+| (post-hoc) — link Linear later | `vines attach-linear-parent <orchestration-id> <ENG-N>`                                               | If you started the row before the Linear ticket existed.                                                                               |
+| 4.2 — recovery scan            | `vines recover`                                                                                       | JSON envelope with `unfinishedTotal`, `resumableTotal`, and per-item `lastCompletedChild` / `nextPendingChild`. Run this once at boot. |
+
+### Worked sequence (operator request → final close)
+
+```bash
+# Step 0 — triage
+vines triage --seconds 600 --domain system-agent --domain code-agent
+# {"activate": true, ...}  → continue; else handle inline.
+
+# Step 1 — parent ticket
+PARENT=$(linear-ticket create --title "..." --state "In Progress" | jq -r '.identifier')
+
+# Step 2 — ledger row (recovery anchor)
+ORCH=$(vines start --objective "..." --linear-parent "$PARENT" --state planning)
+
+# Steps 4–6 — for each planned sub-task:
+vines set-state "$ORCH" executing --last-agent system-agent
+SUB=$(linear-ticket create --parent "$PARENT" --title "[system-agent] ..." \
+       --state "In Progress" | jq -r '.identifier')
+REPLY=$(openclaw agent --agent system-agent --message "..." --json --timeout 600 \
+         | jq -r '.result.payloads[0].text')
+linear-ticket comment "$SUB" --body "$REPLY"
+linear-ticket update  "$SUB" --state "Done"
+
+# Step 7 — close out
+linear-ticket comment "$PARENT" --body "Synthesized answer for the operator."
+linear-ticket update  "$PARENT" --state "Done"
+vines set-state "$ORCH" success
+```
+
+On failure: `vines set-state "$ORCH" failed` and `linear-ticket update "$PARENT" --state "Canceled"`.
+
+After a crash, run `vines recover` and resume from each `nextPendingChild`. The spec at [`vines/spec.md`](../vines/spec.md) is authoritative if anything in this doc drifts. Full integration recipe (including the env vars to source and the Node embedder path) is in [`INSTALL.md §9`](../INSTALL.md).
+
+## Optional: shared knowledge via VECNA (the Hive)
+
+If the operator installed VECNA (`vecna serve` running locally), use it to remember across orchestrations. The Hive is a separate REST service — your `exec` tool shells out to `vecna` to read and write it. The full contract lives in [`../vecna/spec.md`](../vecna/spec.md).
+
+Two-line integration pattern:
+
+```bash
+# Before dispatching a non-trivial sub-task, recall prior context on the topic:
+CTX=$(vecna recall "<topic>" --ticket "$PARENT" --format context)
+# Then append $CTX to the --message you send to the specialist.
+
+# After the specialist returns something durable (a fix, a workaround, a constraint),
+# push it back to the Hive so future Pulses can use it:
+vecna connect --topic "<topic>" \
+  --content "<one or two sentences the future-you will thank you for>" \
+  --source-agent "<which Tendril learned this>" \
+  --importance 4 \
+  --linear-ref "$PARENT"
+```
+
+Rules of thumb:
+
+- **importance 5** for vital lessons that override age (production rules, contract constraints).
+- **importance 4** for solid findings worth surfacing on recall.
+- **importance 1–3** for transient notes; they decay after 6 months.
+- If you later discover a fragment is wrong, run `vecna evolve <fragment-id> --content "<corrected>"` — VECNA deprecates the old and links the new on the same topic.
+
+The Hive is **optional**: when `VECNA_URL` is unset or `vecna healthz` fails, skip the recall/connect calls and proceed without them.
+
 ## Memory
 
 You wake up fresh each session. Files in this workspace are your continuity:
+
 - `memory/YYYY-MM-DD.md` — daily notes (create as needed)
 - `MEMORY.md` — curated long-term memory
 

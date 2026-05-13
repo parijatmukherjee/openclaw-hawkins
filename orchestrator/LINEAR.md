@@ -188,3 +188,25 @@ linear-ticket update $RETRY --state done
    - **Recommended:** 1Password — store as an item, then set `api_key_secret_ref` in `~/.openclaw/linear.json` to the `op://<vault>/<item>/<field>` reference. The CLI will call `op read` on each invocation.
    - **Alternative:** Set `LINEAR_API_KEY` in your shell environment.
 6. Copy `tools/linear-ticket` to `~/.local/bin/linear-ticket` and `chmod +x`. Smoke-test with `linear-ticket list --limit 5`.
+
+## Integrating with VINES (optional)
+
+If you also installed the [VINES library](../vines/spec.md), Linear stops being the _only_ place state lives — an `orchestration_ledger` row in MariaDB becomes the crash-resilient anchor, and Linear remains the canonical record of sub-task state used during recovery cross-reference.
+
+The ticket lifecycle above is unchanged; VINES just bookends it with two extra commands at the boundaries:
+
+```bash
+# Before creating the parent ticket — decide whether to activate at all (spec §3.1)
+vines triage --seconds <est> --domain <agent-id> [--domain <agent-id> ...]
+
+# Right after `linear-ticket create` for the parent — record the recovery anchor
+ORCH=$(vines start --objective "..." --linear-parent "$PARENT_ID" --state planning)
+
+# At the end of the request, alongside `linear-ticket update $PARENT --state Done`
+vines set-state "$ORCH" success     # or `failed` on the failure path
+
+# Once at startup — pick up anything that was in flight when the process died
+vines recover
+```
+
+The full sequence (including dispatch + per-sub-task ticketing) is documented in [`../INSTALL.md` §9.6](../INSTALL.md) and [`AGENTS.md`](AGENTS.md). `../vines/spec.md` is authoritative if anything drifts.
