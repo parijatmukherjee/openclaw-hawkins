@@ -8,128 +8,88 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Added
 
-- **Operator-facing VECNA documentation:**
-  - `INSTALL.md §10` — full VECNA install walkthrough (schema, env vars,
-    systemd unit, smoke commands).
-  - `orchestrator/TOOLS.md.template` — Hive subcommands (`vecna healthz /
-    recall / connect / evolve / search / fragment`) registered in the
-    tool table the operator copies into their Nexus's workspace.
-  - `SKILL.md` Step 5.6 — AI-installer flow now offers the optional
-    VECNA install after VINES, including a systemd unit + env file.
-  - `agents/*/AGENTS.md` — one-paragraph "Tendril of the Hive" footer on
-    each specialist persona telling them when to recall / connect /
-    evolve.
-- `examples/vecna.service` — systemd user unit for running the Nexus as
-  a long-lived process, with a hardened ProtectSystem/NoNewPrivileges
-  stanza.
-- `banner.svg` — Pulse Red / Void Black / Vascular Maroon banner per
-  `docs/branding.md`. Replaces the old `banner.png`.
+- **The supervisor pattern.** One conversational orchestrator (the
+  **Nexus**) coordinating six isolated specialist agents (the
+  **Tendrils**: `system-agent`, `code-agent`, `research-agent`,
+  `data-agent`, `comm-agent`, `vision-agent`). Each Tendril is a true
+  top-level OpenClaw agent with its own workspace and persona.
+  - `scripts/setup.sh` — provisions the six agents on a host.
+  - `orchestrator/` — the Nexus's drop-in workspace files
+    (`AGENTS.md`, `TOOLS.md.template`, `IDENTITY.md.template`,
+    `LINEAR.md`).
+  - `agents/<id>/` — per-Tendril `AGENTS.md` + `IDENTITY.md.template`.
 
-### Verified end-to-end
+- **VINES (Versatile Integration for Networked Execution & State).**
+  Node/TypeScript library that gives each orchestration durable state
+  and crash-resilient recovery. Contract in
+  [`vines/spec.md`](vines/spec.md):
+  - `vines/schema.sql` — `orchestration_ledger` MariaDB table.
+  - `src/persistence.ts` — `Ledger` CRUD with auto-reconnect pool.
+  - `src/linear-client.ts` — Linear GraphQL client.
+  - `src/dispatcher.ts` — wrapper around `openclaw agent --json`.
+  - `src/orchestrator.ts` — §3 protocol engine + §3.1 Sensitivity Check
+    activation gate.
+  - `src/recovery.ts` — §4.2 ledger ↔ Linear cross-reference.
+  - `vines` CLI binary:
+    `init-db / status / recover / triage / start / set-state /
+    attach-linear-parent`.
 
-- Real-service smoke run against the cloud MariaDB ledger (8 / 8 tests
-  passing where env vars supplied): VINES `Ledger` CRUD roundtrip, VECNA
-  `HiveStore` connect → recall → evolve, `linear-ticket list` against
-  the live Linear API.
-- Manual `vecna serve` + `curl` against `/v1/healthz`, `/v1/connect`,
-  `/v1/recall/:topic` — all returned the expected JSON; the
-  `[nexus] The Hive remembers` narrative log fired; graceful SIGTERM
-  shutdown drained the pool cleanly.
-
-### Added
-
-- **VECNA (Versatile Entity for Contextual Network Awareness)** — Hive
-  knowledge-sharing subsystem. Sidecar Express REST service backed by the
-  same MariaDB instance VINES uses:
-  - `vecna/spec.md` — canonical contract.
-  - `vecna/schema.sql` — `vecna_hive` table with topic + fulltext indexes.
+- **VECNA (Versatile Entity for Contextual Network Awareness) — the
+  Hive.** Sidecar Express service for inter-agent knowledge sharing.
+  Contract in [`vecna/spec.md`](vecna/spec.md):
+  - `vecna/schema.sql` — `vecna_hive` table with btree + FULLTEXT
+    indexes.
   - `src/hive/store.ts` — `HiveStore` CRUD (connect with dedup, recall
     with decay-aware ranking, search, evolve, fragment fetch).
   - `src/hive/server.ts` — Express app:
     `/v1/{healthz,connect,recall/:topic,search,fragments/:id,evolve/:id}`.
-    Bearer auth optional via `VECNA_AUTH_TOKEN`.
+    Optional Bearer auth via `VECNA_AUTH_TOKEN`.
   - `src/hive/client.ts` — `HiveTendril` Node client.
-  - `src/hive/cli.ts` — `vecna` CLI binary (serve / connect / recall /
-    search / evolve / fragment / healthz).
-- `scripts/bootstrap-vecna-db.sh` shell helper for applying
-  `vecna/schema.sql`.
-- `make vecna-serve`, `make bootstrap-vecna-db`; `make bootstrap-db` now
-  applies both VINES and VECNA schemas.
-- `orchestrator/AGENTS.md` gains an "Optional: shared knowledge via
-  VECNA" section showing the recall / connect / evolve patterns
-  LLM-driven agents run through their `exec` tool.
-- VECNA smoke test (`tests/smoke/hive.smoke.test.ts`) — env-gated DB
-  roundtrip.
-- `express` runtime dep, `supertest` dev dep for HTTP tests.
+  - `src/hive/cli.ts` — `vecna` CLI binary:
+    `serve / connect / recall / search / evolve / fragment / healthz`.
 
-### Added
+- **The Pulse.** Five-phase workflow vocabulary (Sensitivity Check →
+  Anchoring → Deep Seeking → The Connection → Consolidation) mapping
+  the LLM-driven orchestrator's behaviour onto the technical protocol.
+  Documented in [`docs/pulse-protocol.md`](docs/pulse-protocol.md).
 
-- **`vines` CLI lifecycle subcommands** so a shell-driven orchestrator agent
-  can run the spec §3.2 protocol end-to-end without writing Node glue:
-  - `vines start --objective "..." [--linear-parent <ENG-N>] [--state <s>]`
-    — insert a new `orchestration_ledger` row; prints the UUID.
-  - `vines set-state <orch-id> <state> [--last-agent <id>]` — move through
-    `init → planning → executing → success | failed`.
-  - `vines attach-linear-parent <orch-id> <ENG-N>` — backfill the Linear
-    parent on a row created before the ticket existed.
-- Worked end-to-end integration sequence in `INSTALL.md §9.6` and a
-  matching condensed version in `orchestrator/AGENTS.md`. Shows every
-  `vines` / `linear-ticket` / `openclaw agent` call an LLM orchestrator
-  runs through its `exec` tool from operator request to ticket close.
-- `orchestrator/LINEAR.md` gains an **"Integrating with VINES"** section
-  documenting where VINES bookends the ticket lifecycle.
-- `orchestrator/TOOLS.md.template` registers `vines` and `linear-ticket`
-  in the tool table so adopters' generated `TOOLS.md` lists them.
+- **Brand identity.** Stranger Things–inspired visual + tonal language.
+  Canonical reference in [`docs/branding.md`](docs/branding.md);
+  palette tokens in [`docs/colors.json`](docs/colors.json) (Pulse Red
+  `#E60000`, Void Black `#000000`, Vascular Maroon `#4A0E0E`); banner
+  at `banner.png`.
 
-### Added
+- **Linear ticket oversight.** `tools/linear-ticket` — Node, built-ins
+  only (no `npm install` required to run it). Subcommands:
+  `create / update / comment / get / list`. Configured via
+  `~/.openclaw/linear.json` with either `LINEAR_API_KEY` env var or a
+  1Password `api_key_secret_ref`.
 
-- **Smoke-test suite** under `tests/smoke/`, run via `npm run smoke` (or
-  `make smoke`). Tests are gated on the env vars they need
-  (`MARIADB_URL`, `LINEAR_API_KEY`, etc.) — missing creds yield a clean
-  skip rather than a failure. Covers MariaDB ledger roundtrip, Linear API
-  authentication, `openclaw` CLI availability, and the `linear-ticket`
-  binary.
+- **Operator entrypoints.**
+  - `Makefile`: `install / build / test / coverage / smoke / lint /
+    format / setup-agents / bootstrap-db / bootstrap-vines-db /
+    bootstrap-vecna-db / vecna-serve / clean`.
+  - `scripts/bootstrap-vines-db.sh`, `scripts/bootstrap-vecna-db.sh`.
+  - `examples/vecna.service` — hardened systemd user unit
+    (`ProtectSystem=strict`, `NoNewPrivileges=true`).
 
-### Changed
+- **AI-installer manifest.** `SKILL.md` walks an existing OpenClaw
+  agent through the full install with explicit operator
+  decision-points.
 
-- **`tools/linear-ticket` ported from Python to Node** (Node ≥ 20,
-  built-ins only — no `npm install` required to run it). API is unchanged
-  (`create / update / comment / get / list`). The repo no longer ships any
-  Python files.
-- `SKILL.md` swaps the `python3 -c "import json …"` JSON-extraction
-  one-liners for `jq -r '.result.payloads[0].text'`.
-- Doc references that called the VINES library "Python" now correctly say
-  "Node/TypeScript" (`README.md`, `vines/spec.md`, `scripts/bootstrap-vines-db.sh`).
+- **CI + quality gates.**
+  - GitHub Actions: matrix tests on Node 20 + 22, ESLint
+    (`typescript-eslint` recommended-type-checked), Prettier
+    `--check`, shellcheck on `scripts/`, Codecov upload.
+  - Vitest with v8 coverage — thresholds enforced on every PR
+    (statements ≥ 95 %, functions ≥ 95 %, branches ≥ 88 %,
+    lines ≥ 95 %).
+  - Smoke suite under `tests/smoke/` runs against real
+    MariaDB / Linear / OpenClaw / VECNA Hive when the corresponding
+    env vars are set. Verified locally: 100 % pass on a configured
+    host.
 
-- **VINES (Versatile Integration for Networked Execution & State).** A Node/TypeScript library that
-  implements the [VINES specification](vines/spec.md): a supervisor-pattern
-  protocol with durable state in MariaDB and Linear-backed ticket oversight.
-  Includes:
-  - `src/persistence.ts` — `Ledger` class CRUD-ing `orchestration_ledger`.
-  - `src/linear-client.ts` — minimal GraphQL client for Linear's REST API.
-  - `src/dispatcher.ts` — wrapper around `openclaw agent --json`.
-  - `src/orchestrator.ts` — the 7-step §3.2 workflow engine + §3.1 triage.
-  - `src/recovery.ts` — §4.2 cross-reference between ledger and Linear.
-  - `vines` CLI with `init-db`, `status`, `recover`, `triage` subcommands.
-- `vines/schema.sql` — canonical `orchestration_ledger` table.
-- `scripts/bootstrap-vines-db.sh` — shell helper for applying the schema.
-- `Makefile` — operator + developer entrypoint over npm scripts.
-- GitHub Actions CI: matrix tests (Node 20 + 22), eslint, prettier check,
-  shellcheck.
-- OSS scaffolding: `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`,
-  bug / feature issue templates, PR template.
-- Test suite — vitest with v8 coverage; thresholds enforced
-  (statements ≥ 95 %, functions ≥ 95 %, branches ≥ 90 %).
+- **OSS scaffolding.** `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`,
+  `SECURITY.md`, issue templates (bug, feature), PR template.
 
-### Changed
-
-- `INSTALL.md` now documents both the agent setup (existing) and the
-  optional VINES library install.
-- `orchestrator/AGENTS.md` references the new VINES library and links the
-  spec.
-
-## [0.0.x] — pre-1.0 specialist-pattern releases
-
-The initial drop of the repo (commit `c97bd38` onwards) shipped the
-six-specialist OpenClaw pattern, agent personas, skill manifests, and
-`linear-ticket` shell tool. See the git log for details.
+[Unreleased]: https://github.com/parijatmukherjee/openclaw-hawkins/compare/v0.0.0...HEAD
