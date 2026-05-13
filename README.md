@@ -15,9 +15,23 @@
 
 > **Everything is Connected.**
 
-A drop-in multi-agent orchestration pattern for [OpenClaw](https://openclaw.ai). One conversational orchestrator (**the Nexus**) coordinates six isolated specialist agents (**the Tendrils**), with optional durable state (**VINES**) and Linear-backed ticket oversight. The brand vocabulary is [Stranger Things](https://www.netflix.com/title/80057281)–coloured; the protocol is grounded engineering.
+A multi-agent orchestration pattern — **demonstrated on [OpenClaw](https://openclaw.ai)** — where one conversational orchestrator (**the Nexus**) coordinates six isolated specialist agents (**the Tendrils**), with durable state that survives restarts (**VINES**) and decay-aware shared memory (**VECNA**). The brand vocabulary is [Stranger Things](https://www.netflix.com/title/80057281)–coloured; the protocol is grounded engineering.
 
 > ⭐ **Find this useful?** Star the repo — it surfaces the pattern to other OpenClaw operators and tells me whether to keep iterating. 🩸
+
+---
+
+## 🎯 Who this is for
+
+You'll get value from this repo if any of these sound like you:
+
+- 🧠 **Your single AI agent forgets everything between conversations.** VECNA gives the swarm shared, decay-aware memory across requests.
+- 🪦 **Your agent crashes mid-task and starts over.** VINES persists orchestration state to MariaDB; recovery walks Linear to figure out where to resume.
+- 🧱 **One mega-agent with every tool/skill loaded eats your context window on trivial routing.** The Nexus stays lean; specialists carry their own context.
+- 🗂️ **You want operator-grade visibility into what an autonomous agent is doing** — without scraping logs. Linear (or any ticket backend) gives you a live board.
+- 🦞 **You run OpenClaw** and want a drop-in upgrade from the default single-agent shape.
+
+If you're prototyping a one-shot Q&A bot, this is overkill. Reach for it when you need _durability_, _specialisation_, and _operator oversight_ — not just "an agent that calls tools."
 
 ---
 
@@ -212,6 +226,21 @@ A single OpenClaw agent that "does everything" hits two walls fast:
 - 🪶 The Nexus stays lean: routing + light conversation + quick lookups (≤ 30 s inline).
 - 🧱 Tendrils are independent processes with their own contexts. Memory and learning accumulate per-domain.
 - 🎯 Dispatch is one CLI command. Response is structured JSON. The Nexus handles synthesis.
+
+---
+
+## 🆚 How this compares
+
+This isn't a framework — it's a pattern, with a reference implementation on OpenClaw. The closest neighbours:
+
+| If you want…                                        | Reach for                               | Why not openclaw-hawkins?                                         |
+| --------------------------------------------------- | --------------------------------------- | ----------------------------------------------------------------- |
+| Python-first, graph-based agent workflows           | **LangGraph**                           | Different runtime; LangGraph is in-process, Hawkins is OS-level.  |
+| Role-playing collaborative agents w/ rich prompting | **CrewAI**                              | CrewAI optimises for prompt orchestration; we optimise for state. |
+| Conversational multi-agent debates                  | **AutoGen**                             | AutoGen is conversation-as-protocol; we're dispatch-as-protocol.  |
+| Self-hosted "single agent that calls tools"         | Plain Claude / GPT / Ollama + a toolbox | Hits context-bloat wall fast; no durability if it crashes.        |
+
+**Pick openclaw-hawkins when** you need durability across restarts, isolated specialist contexts on the same host, and a paper-trail for what the swarm actually did. **Skip it when** you're prototyping, the work fits one prompt, or you don't run OpenClaw.
 
 ---
 
