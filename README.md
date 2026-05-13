@@ -109,7 +109,7 @@ curl -fsSL https://raw.githubusercontent.com/parijatmukherjee/openclaw-hawkins/m
 
 ```bash
 # 1️⃣ Clone — pin to the latest release tag so the source tree is immutable
-git clone --branch v1.0.2 --depth 1 https://github.com/parijatmukherjee/openclaw-hawkins.git ~/openclaw-hawkins
+git clone --branch v1.0.5 --depth 1 https://github.com/parijatmukherjee/openclaw-hawkins.git ~/openclaw-hawkins
 cd ~/openclaw-hawkins
 
 # 2️⃣ Create the 6 specialist agents

@@ -291,11 +291,23 @@ test -d "$REPO_DIR/.git" && existed=true || existed=false
 **ACT**
 
 ```bash
+# Resolve the latest published release tag so the installer pins to an
+# immutable source tree rather than the moving `main` branch.
+LATEST_TAG=$(git ls-remote --tags --refs \
+              https://github.com/parijatmukherjee/openclaw-hawkins.git 'v[0-9]*.[0-9]*.[0-9]*' \
+            | awk -F/ '{print $NF}' \
+            | sort -V \
+            | tail -1)
+[ -n "$LATEST_TAG" ] || { echo "ERROR: no release tags found"; exit 1; }
+
 if $existed; then
-  git -C "$REPO_DIR" pull --rebase --ff-only
+  git -C "$REPO_DIR" fetch --tags --quiet
+  git -C "$REPO_DIR" checkout --quiet "$LATEST_TAG"
 else
-  git clone https://github.com/parijatmukherjee/openclaw-hawkins.git "$REPO_DIR"
+  git clone --branch "$LATEST_TAG" --depth 1 \
+    https://github.com/parijatmukherjee/openclaw-hawkins.git "$REPO_DIR"
 fi
+echo "Pinned to release: $LATEST_TAG"
 ```
 
 **VERIFY**
