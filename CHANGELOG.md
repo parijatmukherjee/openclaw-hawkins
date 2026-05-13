@@ -8,6 +8,25 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Added
 
+- **`aso` CLI lifecycle subcommands** so a shell-driven orchestrator agent
+  can run the spec §3.2 protocol end-to-end without writing Node glue:
+  - `aso start --objective "..." [--linear-parent <ENG-N>] [--state <s>]`
+    — insert a new `orchestration_ledger` row; prints the UUID.
+  - `aso set-state <orch-id> <state> [--last-agent <id>]` — move through
+    `init → planning → executing → success | failed`.
+  - `aso attach-linear-parent <orch-id> <ENG-N>` — backfill the Linear
+    parent on a row created before the ticket existed.
+- Worked end-to-end integration sequence in `INSTALL.md §9.6` and a
+  matching condensed version in `orchestrator/AGENTS.md`. Shows every
+  `aso` / `linear-ticket` / `openclaw agent` call an LLM orchestrator
+  runs through its `exec` tool from operator request to ticket close.
+- `orchestrator/LINEAR.md` gains an **"Integrating with ASO"** section
+  documenting where ASO bookends the ticket lifecycle.
+- `orchestrator/TOOLS.md.template` registers `aso` and `linear-ticket`
+  in the tool table so adopters' generated `TOOLS.md` lists them.
+
+### Added
+
 - **Smoke-test suite** under `tests/smoke/`, run via `npm run smoke` (or
   `make smoke`). Tests are gated on the env vars they need
   (`MARIADB_URL`, `LINEAR_API_KEY`, etc.) — missing creds yield a clean
@@ -25,8 +44,6 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
   one-liners for `jq -r '.result.payloads[0].text'`.
 - Doc references that called the ASO library "Python" now correctly say
   "Node/TypeScript" (`README.md`, `aso/spec.md`, `scripts/bootstrap-aso-db.sh`).
-
-
 
 - **ASO — Agentic Swarm Orchestrator.** A Node/TypeScript library that
   implements the [ASO specification](aso/spec.md): a supervisor-pattern

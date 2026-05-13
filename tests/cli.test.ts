@@ -263,6 +263,137 @@ describe("aso recover", () => {
   });
 });
 
+describe("aso start", () => {
+  it("inserts a ledger row and prints the orchestration id", async () => {
+    queryFn.mockResolvedValueOnce({ affectedRows: 1 });
+    const main = await importMain();
+    const out = captureOutput();
+    const rc = await main([
+      "node",
+      "aso",
+      "start",
+      "--objective",
+      "Stand up monitoring stack",
+      "--linear-parent",
+      "ENG-42",
+      "--state",
+      "planning",
+      "--last-agent",
+      "system-agent",
+    ]);
+    out.restore();
+    expect(rc).toBe(0);
+    const id = out.stdout().trim();
+    expect(id).toMatch(/^[0-9a-f-]{36}$/);
+    const insertCall = queryFn.mock.calls[0] as [string, unknown[]];
+    expect(insertCall[0]).toContain("INSERT INTO orchestration_ledger");
+    expect(insertCall[1][1]).toBe("ENG-42");
+    expect(insertCall[1][2]).toBe("Stand up monitoring stack");
+    expect(insertCall[1][3]).toBe("planning");
+    expect(insertCall[1][4]).toBe("system-agent");
+  });
+
+  it("rejects blank --objective", async () => {
+    const main = await importMain();
+    const out = captureOutput();
+    const rc = await main(["node", "aso", "start", "--objective", "   "]);
+    out.restore();
+    expect(rc).toBe(2);
+    expect(out.stderr()).toContain("--objective");
+  });
+
+  it("rejects invalid --state", async () => {
+    const main = await importMain();
+    const writeErr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    const writeOut = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    const rc = await main(["node", "aso", "start", "--objective", "x", "--state", "nonsense"]);
+    writeErr.mockRestore();
+    writeOut.mockRestore();
+    expect(rc).not.toBe(0);
+  });
+
+  it("defaults state to 'init' when --state is omitted", async () => {
+    queryFn.mockResolvedValueOnce({ affectedRows: 1 });
+    const main = await importMain();
+    const out = captureOutput();
+    const rc = await main(["node", "aso", "start", "--objective", "x"]);
+    out.restore();
+    expect(rc).toBe(0);
+    const insertCall = queryFn.mock.calls[0] as [string, unknown[]];
+    expect(insertCall[1][3]).toBe("init");
+  });
+});
+
+describe("aso set-state", () => {
+  it("issues a state update and prints ok", async () => {
+    queryFn.mockResolvedValueOnce({ affectedRows: 1 });
+    const main = await importMain();
+    const out = captureOutput();
+    const rc = await main([
+      "node",
+      "aso",
+      "set-state",
+      "11111111-2222-3333-4444-555555555555",
+      "executing",
+      "--last-agent",
+      "code-agent",
+    ]);
+    out.restore();
+    expect(rc).toBe(0);
+    expect(out.stdout()).toContain("→ executing");
+    const updateCall = queryFn.mock.calls[0] as [string, unknown[]];
+    expect(updateCall[0]).toMatch(/UPDATE orchestration_ledger/);
+    expect(updateCall[1]).toEqual([
+      "executing",
+      "code-agent",
+      "11111111-2222-3333-4444-555555555555",
+    ]);
+  });
+
+  it("returns 2 if the orchestration id doesn't exist", async () => {
+    queryFn.mockResolvedValueOnce({ affectedRows: 0 });
+    const main = await importMain();
+    const out = captureOutput();
+    const rc = await main(["node", "aso", "set-state", "missing-id", "success"]);
+    out.restore();
+    expect(rc).toBe(2);
+    expect(out.stderr()).toContain("missing-id");
+  });
+
+  it("rejects invalid <state> positional", async () => {
+    const main = await importMain();
+    const writeErr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    const writeOut = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    const rc = await main(["node", "aso", "set-state", "id", "bogus"]);
+    writeErr.mockRestore();
+    writeOut.mockRestore();
+    expect(rc).not.toBe(0);
+  });
+});
+
+describe("aso attach-linear-parent", () => {
+  it("updates the row and prints ok", async () => {
+    queryFn.mockResolvedValueOnce({ affectedRows: 1 });
+    const main = await importMain();
+    const out = captureOutput();
+    const rc = await main(["node", "aso", "attach-linear-parent", "oid-1", "ENG-9"]);
+    out.restore();
+    expect(rc).toBe(0);
+    expect(out.stdout()).toMatch(/oid-1.*ENG-9/);
+    const updateCall = queryFn.mock.calls[0] as [string, unknown[]];
+    expect(updateCall[1]).toEqual(["ENG-9", "oid-1"]);
+  });
+
+  it("returns 2 if the orchestration id doesn't exist", async () => {
+    queryFn.mockResolvedValueOnce({ affectedRows: 0 });
+    const main = await importMain();
+    const out = captureOutput();
+    const rc = await main(["node", "aso", "attach-linear-parent", "missing", "ENG-9"]);
+    out.restore();
+    expect(rc).toBe(2);
+  });
+});
+
 describe("aso help / unknown", () => {
   it("--help returns 0", async () => {
     const main = await importMain();

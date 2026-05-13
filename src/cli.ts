@@ -1,16 +1,25 @@
 #!/usr/bin/env node
 /**
- * `aso` command-line interface.
+ * `aso` command-line interface — the shell-callable surface of the ASO
+ * library. Designed so an LLM-driven orchestrator (running inside OpenClaw,
+ * Claude Code, or any agent runtime with an `exec` tool) can drive the
+ * spec §3.2 protocol end-to-end without writing custom glue.
  *
  * Subcommands:
- *   aso init-db    Apply aso/schema.sql to the configured database.
- *   aso status     Print recent ledger rows.
- *   aso recover    JSON recovery report (spec §4.2).
- *   aso triage     Print whether the protocol activates for given inputs.
  *
- * Interesting workflows (creating orchestrations, dispatching specialists)
- * belong to the orchestrator *agent* which embeds the library. The CLI is
- * for setup, observability, and debugging.
+ *   Setup / observability
+ *     init-db                  Apply aso/schema.sql to the configured database.
+ *     status                   Print recent ledger rows.
+ *     recover                  JSON recovery report (spec §4.2).
+ *     triage                   Activation decision (spec §3.1).
+ *
+ *   Orchestration lifecycle (spec §3.2)
+ *     start                    Insert a new orchestration ledger row; prints
+ *                              the orchestration_id on stdout.
+ *     set-state                Move an orchestration through its lifecycle
+ *                              (init → planning → executing → success/failed).
+ *     attach-linear-parent     Backfill linear_parent_id on a row that was
+ *                              created before the Linear ticket existed.
  *
  * Exit codes:
  *   0  success
@@ -19,7 +28,7 @@
  *   4  database error
  */
 
-import { Command } from "commander";
+import { Command, InvalidArgumentError } from "commander";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
@@ -30,6 +39,20 @@ import { LinearClient } from "./linear-client.js";
 import { triage } from "./orchestrator.js";
 import { Ledger } from "./persistence.js";
 import { scanRecovery, resumable, orphaned } from "./recovery.js";
+import type { LedgerState } from "./types.js";
+
+const LEDGER_STATES: ReadonlyArray<LedgerState> = [
+  "init",
+  "planning",
+  "executing",
+  "success",
+  "failed",
+];
+
+function parseState(value: string): LedgerState {
+  if ((LEDGER_STATES as ReadonlyArray<string>).includes(value)) return value as LedgerState;
+  throw new InvalidArgumentError(`state must be one of: ${LEDGER_STATES.join(", ")}`);
+}
 
 class UserError extends Error {}
 
@@ -78,6 +101,58 @@ export async function main(argv: readonly string[] = process.argv): Promise<numb
       const decision = triage(Number(opts.seconds), opts.domain);
       process.stdout.write(JSON.stringify(decision, null, 2) + "\n");
       rc = 0;
+    });
+
+  program
+    .command("start")
+    .description(
+      "Create a new orchestration_ledger row (spec §3.2 step 2). " +
+        "Prints the orchestration_id on stdout — capture and pass to subsequent commands.",
+    )
+    .requiredOption("-o, --objective <text>", "Operator-facing description of the goal")
+    .option(
+      "-p, --linear-parent <id>",
+      "Linear parent issue identifier (e.g. ENG-42) or UUID — optional; can be attached later",
+    )
+    .option("-s, --state <state>", "Initial state (default: init)", parseState, "init")
+    .option("-a, --last-agent <id>", "Specialist id to record as last-active (telemetry; optional)")
+    .action(
+      async (opts: {
+        objective: string;
+        linearParent?: string;
+        state: LedgerState;
+        lastAgent?: string;
+      }) => {
+        rc = await runOrReportError(() =>
+          startOrchestration({
+            objective: opts.objective,
+            linearParentId: opts.linearParent ?? null,
+            state: opts.state,
+            lastAgentActive: opts.lastAgent ?? null,
+          }),
+        );
+      },
+    );
+
+  program
+    .command("set-state")
+    .description(
+      "Move an orchestration through its lifecycle (spec §3.2 steps 3–7 and §4.2 recovery).",
+    )
+    .argument("<orchestration-id>", "UUID returned by `aso start`")
+    .argument("<state>", `One of: ${LEDGER_STATES.join(" | ")}`, parseState)
+    .option("-a, --last-agent <id>", "Specialist id to record as last-active (telemetry; optional)")
+    .action(async (id: string, state: LedgerState, opts: { lastAgent?: string }) => {
+      rc = await runOrReportError(() => setStateCmd(id, state, opts.lastAgent ?? null));
+    });
+
+  program
+    .command("attach-linear-parent")
+    .description("Backfill linear_parent_id on an existing orchestration row.")
+    .argument("<orchestration-id>", "UUID returned by `aso start`")
+    .argument("<linear-parent-id>", "Linear identifier (ENG-42) or UUID")
+    .action(async (id: string, linearParentId: string) => {
+      rc = await runOrReportError(() => attachLinearParent(id, linearParentId));
     });
 
   try {
@@ -174,6 +249,64 @@ async function status(limit: number): Promise<number> {
         )}  ${pad(r.lastAgentActive ?? "-", 15)}  ${r.updatedAt.toISOString()}\n`,
       );
     }
+    return 0;
+  } finally {
+    await ledger.close();
+  }
+}
+
+async function startOrchestration(args: {
+  objective: string;
+  linearParentId: string | null;
+  state: LedgerState;
+  lastAgentActive: string | null;
+}): Promise<number> {
+  if (!args.objective.trim()) throw new UserError("--objective must be a non-empty string");
+  const ledger = Ledger.fromEnv();
+  try {
+    const id = await ledger.create({
+      objectiveSummary: args.objective,
+      linearParentId: args.linearParentId,
+      state: args.state,
+      lastAgentActive: args.lastAgentActive,
+    });
+    // Print only the id on stdout so callers can capture it cleanly:
+    //   ORCH_ID=$(aso start --objective "...")
+    process.stdout.write(id + "\n");
+    return 0;
+  } finally {
+    await ledger.close();
+  }
+}
+
+async function setStateCmd(
+  orchestrationId: string,
+  state: LedgerState,
+  lastAgentActive: string | null,
+): Promise<number> {
+  if (!orchestrationId.trim()) throw new UserError("orchestration-id must be non-empty");
+  const ledger = Ledger.fromEnv();
+  try {
+    const ok = await ledger.setState(orchestrationId, state, { lastAgentActive });
+    if (!ok) throw new UserError(`no ledger row with orchestration_id=${orchestrationId}`);
+    process.stdout.write(`ok: ${orchestrationId} → ${state}\n`);
+    return 0;
+  } finally {
+    await ledger.close();
+  }
+}
+
+async function attachLinearParent(
+  orchestrationId: string,
+  linearParentId: string,
+): Promise<number> {
+  if (!orchestrationId.trim()) throw new UserError("orchestration-id must be non-empty");
+  if (!linearParentId.trim()) throw new UserError("linear-parent-id must be non-empty");
+  const ledger = Ledger.fromEnv();
+  try {
+    const ok = await ledger.attachLinearParent(orchestrationId, linearParentId);
+    if (!ok) throw new UserError(`no ledger row with orchestration_id=${orchestrationId}`);
+    process.stdout.write(`ok: ${orchestrationId} linked to ${linearParentId}\n`);
     return 0;
   } finally {
     await ledger.close();

@@ -55,14 +55,14 @@ rm -f ~/.openclaw/agents/<id>/workspace/BOOTSTRAP.md
 
 Defaults for each specialist:
 
-| Agent | Model |
-|-------|-------|
-| `system-agent` | `ollama/kimi-k2.6:cloud` |
-| `code-agent` | `ollama/kimi-k2.6:cloud` |
-| `research-agent` | `ollama/kimi-k2.6:cloud` |
-| `data-agent` | `ollama/kimi-k2.6:cloud` |
-| `comm-agent` | `ollama/kimi-k2.6:cloud` |
-| `vision-agent` | `ollama/kimi-k2.5:cloud` (text+image; required for OCR/screenshot tasks) |
+| Agent            | Model                                                                    |
+| ---------------- | ------------------------------------------------------------------------ |
+| `system-agent`   | `ollama/kimi-k2.6:cloud`                                                 |
+| `code-agent`     | `ollama/kimi-k2.6:cloud`                                                 |
+| `research-agent` | `ollama/kimi-k2.6:cloud`                                                 |
+| `data-agent`     | `ollama/kimi-k2.6:cloud`                                                 |
+| `comm-agent`     | `ollama/kimi-k2.6:cloud`                                                 |
+| `vision-agent`   | `ollama/kimi-k2.5:cloud` (text+image; required for OCR/screenshot tasks) |
 
 ## 3. Personalize each specialist's identity
 
@@ -95,11 +95,13 @@ cp orchestrator/IDENTITY.md.template ~/.openclaw/workspace/IDENTITY.md
 ```
 
 Then edit `~/.openclaw/workspace/TOOLS.md` to fill in:
+
 - Your hostname, OS, user
 - Your model choices
 - Any integrations you have wired (email, calendar, chat channels, etc.)
 
 And edit `~/.openclaw/workspace/IDENTITY.md` to pick:
+
 - A name for your orchestrator
 - A vibe
 - An emoji
@@ -253,13 +255,13 @@ You now have an `aso` CLI on the local `node_modules/.bin/aso` path (or via
 
 The library reads these env vars (see [`aso/spec.md`](aso/spec.md) §5):
 
-| Variable | Purpose |
-|----------|---------|
-| `MARIADB_URL` | `mariadb://<host>[:port]/<database>` (credentials in URL win if present) |
-| `MARIADB_USER` | DB user (skip if embedded in the URL) |
-| `MARIADB_PASSWORD` | DB password (skip if embedded) |
-| `MARIADB_SSL` | `disabled` \| `preferred` (default) \| `required` \| `insecure` |
-| `LINEAR_API_KEY` | Linear personal API token (required) |
+| Variable           | Purpose                                                                  |
+| ------------------ | ------------------------------------------------------------------------ |
+| `MARIADB_URL`      | `mariadb://<host>[:port]/<database>` (credentials in URL win if present) |
+| `MARIADB_USER`     | DB user (skip if embedded in the URL)                                    |
+| `MARIADB_PASSWORD` | DB password (skip if embedded)                                           |
+| `MARIADB_SSL`      | `disabled` \| `preferred` (default) \| `required` \| `insecure`          |
+| `LINEAR_API_KEY`   | Linear personal API token (required)                                     |
 
 Add them to your shell, the orchestrator agent's systemd unit, or wherever
 its env is sourced. **Never commit them.**
@@ -286,19 +288,98 @@ npx aso recover                    # expect: {"unfinishedTotal": 0, ...}
 
 ### 9.6 Wire it into the orchestrator agent
 
-The orchestrator agent shells out to `aso` (and reads / writes Linear via
-`linear-ticket`) at each protocol step. Reference patterns are documented in
-[`orchestrator/AGENTS.md`](orchestrator/AGENTS.md). The minimum integration
-is:
+Your existing OpenClaw orchestrator (Dobby, Maestro, Conductor — whatever
+yours is called) drives the `aso` CLI and `linear-ticket` via its `exec`
+tool. The CLI surface is intentionally shell-callable so an LLM-driven
+agent can do this directly — no Node glue required.
+
+#### The integration sequence (worked example)
+
+Imagine the operator says: _"Stand up the staging monitoring stack."_ The
+orchestrator follows the spec §3.2 protocol step by step. Each block below
+is exactly what the orchestrator runs via `exec`:
 
 ```bash
-# at the top of each operator request the orchestrator handles:
-aso triage --seconds <est> --domain <agent-id> --domain <agent-id> ...
-# → if {"activate": false}, handle inline; otherwise dispatch via the
-#   linear-ticket + openclaw agent pattern below.
+# ── Step 0 — TRIAGE (spec §3.1) ───────────────────────────────────────────
+aso triage --seconds 600 --domain system-agent --domain code-agent --domain data-agent
+# → {"activate": true, "reason": "estimatedSeconds=600 > 30"}
+# If activate=false, handle inline and stop. If true, continue:
+
+# ── Step 1 — PARENT TICKET (spec §3.2 step 1) ─────────────────────────────
+PARENT=$(linear-ticket create \
+  --title "Stand up staging monitoring stack" \
+  --description "<operator's verbatim request + plan>" \
+  --state "In Progress" | jq -r '.identifier')   # e.g. ENG-123
+
+# ── Step 2 — LEDGER ROW (spec §3.2 step 2) ────────────────────────────────
+ORCH=$(aso start \
+  --objective "Stand up staging monitoring stack" \
+  --linear-parent "$PARENT" \
+  --state planning)
+# $ORCH is now a UUID — keep it in scope for the rest of the request.
+
+# ── Step 3 — RESEARCH GATE (optional, spec §3.2 step 3) ───────────────────
+# If your planner says you need a research brief first:
+openclaw agent --agent research-agent --message "Compare Prom vs VictoriaMetrics for our scale" --json --timeout 300 \
+  | jq -r '.result.payloads[0].text' \
+  | (read -r brief; linear-ticket comment "$PARENT" --body "Research brief: $brief")
+
+# ── Step 4 + 5 — PLAN AND DISPATCH (spec §3.2 steps 4–5) ──────────────────
+aso set-state "$ORCH" executing --last-agent system-agent
+
+SUB=$(linear-ticket create \
+  --title "[system-agent] Install Prometheus + node_exporter" \
+  --parent "$PARENT" --state "In Progress" | jq -r '.identifier')
+
+REPLY=$(openclaw agent --agent system-agent \
+  --message "Install Prometheus + node_exporter on staging; verify both up." \
+  --json --timeout 600 | jq -r '.result.payloads[0].text')
+
+# ── Step 6 — SYNC (spec §3.2 step 6) ──────────────────────────────────────
+linear-ticket comment "$SUB" --body "$REPLY"
+linear-ticket update  "$SUB" --state "Done"     # or "Canceled" on failure
+
+# … repeat steps 4–6 for each sub-task …
+
+# ── Step 7 — FINAL REPORT (spec §3.2 step 7) ──────────────────────────────
+linear-ticket comment "$PARENT" --body "Synthesized result for the operator."
+linear-ticket update  "$PARENT" --state "Done"
+aso set-state "$ORCH" success
 ```
 
-A complete reference implementation (in Node) lives in [`src/orchestrator.ts`](src/orchestrator.ts). You can call it directly from your own glue code:
+If a sub-task fails or the orchestrator decides to abort:
+
+```bash
+aso set-state "$ORCH" failed --last-agent <which-one-failed>
+linear-ticket update "$PARENT" --state "Canceled"
+```
+
+After a crash or restart, the orchestrator runs **once** at boot:
+
+```bash
+aso recover
+# → JSON: { unfinishedTotal, resumableTotal, items: [{ orchestrationId,
+#          linearParentId, lastCompletedChild, nextPendingChild, ... }] }
+```
+
+For each `resumable` item, look at `nextPendingChild` in Linear and pick up
+from there. For `orphaned` items (`linear_parent_id` was set but Linear
+doesn't know it any more), call `aso set-state <id> failed` to clean up.
+
+#### What you need in your orchestrator's `AGENTS.md`
+
+Open `~/.openclaw/workspace/AGENTS.md` (the orchestrator agent's workspace
+doc — installed by `scripts/setup.sh`) and confirm the **"Optional: durable
+state via the ASO library"** section is present. That section tells the LLM
+this sequence is available. Add the env vars listed in §9.3 to your
+orchestrator agent's startup environment (typically the gateway's systemd
+drop-in or your shell rc).
+
+#### Calling the library directly (Node embedders)
+
+If you're embedding the orchestrator into a Node app rather than driving an
+LLM agent, skip the CLI and use the library directly. The exported
+`Orchestrator` class wraps the whole sequence above into a single method:
 
 ```ts
 import { Orchestrator, Ledger, LinearClient, dispatchSpecialist } from "openclaw-orchestra";
@@ -313,16 +394,29 @@ const orchestrator = new Orchestrator({
 });
 
 const result = await orchestrator.run({
-  objective: "Stand up the staging monitoring stack",
-  planner: (_objective, _brief) => [ /* … your sub-tasks … */ ],
+  objective: "Stand up staging monitoring stack",
+  planner: (_objective, _brief) => [
+    {
+      title: "Install Prom + node_exporter",
+      agent: "system-agent",
+      message: "…",
+      timeoutSeconds: 600,
+    },
+    // …more sub-tasks…
+  ],
 });
+console.log(result.summary);
 ```
+
+The shell flow and the library API are equivalent — both implement the same
+spec §3.2 protocol on the same ledger.
 
 ## Troubleshooting
 
 ### "Specialist responds as if it has no scope"
 
 The specialist isn't reading its `AGENTS.md`. Check:
+
 - `~/.openclaw/agents/<id>/workspace/AGENTS.md` exists and has the content from this repo's `agents/<id>/AGENTS.md`.
 - `~/.openclaw/agents/<id>/workspace/BOOTSTRAP.md` is **absent** (its presence triggers a self-discovery flow that overrides identity).
 - The gateway has been restarted after the workspace was populated.
@@ -335,14 +429,14 @@ The specialist isn't reading its `AGENTS.md`. Check:
 
 Increase `--timeout`. Default latency bands (in `orchestrator/AGENTS.md`):
 
-| Specialist | Suggested timeout |
-|---|---|
-| system-agent | 120–600 s |
-| code-agent | 180–900 s |
-| research-agent | 90–600 s |
-| data-agent | 60–300 s |
-| comm-agent | 30–180 s |
-| vision-agent | 30–180 s |
+| Specialist     | Suggested timeout |
+| -------------- | ----------------- |
+| system-agent   | 120–600 s         |
+| code-agent     | 180–900 s         |
+| research-agent | 90–600 s          |
+| data-agent     | 60–300 s          |
+| comm-agent     | 30–180 s          |
+| vision-agent   | 30–180 s          |
 
 ### Linear `linear-ticket: op read failed`
 

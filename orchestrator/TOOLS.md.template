@@ -45,6 +45,24 @@ Update this table to match the specialists you've actually created.
 - **`browser`** — Headless browser control (when enabled).
 - _(Add any other tools your install enables — taskflow, emctl, msgraph, op, etc.)_
 
+### Shell-callable openclaw-orchestra tools
+
+These ship with the repo and are invoked via your `exec` tool. Each is
+self-contained — no language runtime to learn beyond what you already use.
+
+| Command | Purpose | Activation condition |
+|---|---|---|
+| `openclaw agent --agent <id> --message "..." --json --timeout <s>` | Dispatch a specialist. The contract for every non-trivial request. | Always available. |
+| `linear-ticket {create\|update\|comment\|get\|list}` | Linear ticket lifecycle (parent + sub-tickets). See [LINEAR.md](LINEAR.md). | Optional. Configured via `~/.openclaw/linear.json`. |
+| `aso triage --seconds <n> --domain <id> …` | Spec §3.1 activation gate. JSON `{activate, reason}`. | Optional. Requires ASO library installed. |
+| `aso start --objective "..." [--linear-parent <ENG-N>] [--state <s>]` | Create the `orchestration_ledger` row. Prints the orchestration UUID. | Optional. Requires MariaDB. |
+| `aso set-state <orch-id> <state> [--last-agent <id>]` | Move the orchestration through `init → planning → executing → success\|failed`. | Optional. |
+| `aso attach-linear-parent <orch-id> <ENG-N>` | Backfill `linear_parent_id` after the fact. | Optional. |
+| `aso recover` | Cross-reference unfinished ledger rows with Linear (spec §4.2). Run once at boot. | Optional. |
+| `aso status [--limit N]` | Recent ledger rows for human inspection. | Optional. |
+
+The end-to-end ticket + ledger sequence is in [AGENTS.md](AGENTS.md) and [`../INSTALL.md` §9.6](../INSTALL.md).
+
 **Deprecated (legacy subagent pattern, do not use for new work):** `sessions_spawn`, `subagents`, `sessions_yield`. Use the cross-agent dispatch above instead.
 
 ## Integrations (fill in if you use them)
