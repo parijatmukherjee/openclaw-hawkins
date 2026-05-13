@@ -18,16 +18,15 @@ on:
 
 permissions:
   contents: read
-  # `id-token: write` is required for npm provenance (OIDC trust).
-  id-token: write
+  id-token: write   # required for npm Trusted Publishing + ClawHub OIDC
 
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  release:
-    name: build + publish (npm + ClawHub)
+  publish-npm:
+    name: publish to npm (Trusted Publishing)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout the tagged commit
@@ -36,27 +35,6 @@ jobs:
           ref: ${{ inputs.tag || github.ref }}
           fetch-depth: 0
 
-      - name: Resolve tag + version
-        id: resolve
-        run: |
-          set -euo pipefail
-          if [ -n "${{ inputs.tag }}" ]; then
-            TAG="${{ inputs.tag }}"
-          else
-            TAG="${GITHUB_REF#refs/tags/}"
-          fi
-          VERSION="${TAG#v}"
-          PKG_VERSION="$(node -p "require('./package.json').version")"
-          if [ "$VERSION" != "$PKG_VERSION" ]; then
-            echo "::error::tag ($VERSION) does not match package.json version ($PKG_VERSION)."
-            echo "         bump package.json + commit + retag, then re-run."
-            exit 1
-          fi
-          echo "tag=$TAG"           >> "$GITHUB_OUTPUT"
-          echo "version=$VERSION"   >> "$GITHUB_OUTPUT"
-          echo "  tag        : $TAG"
-          echo "  version    : $VERSION"
-
       - name: Set up Node 22
         uses: actions/setup-node@v4
         with:
@@ -64,49 +42,55 @@ jobs:
           cache: npm
           registry-url: "https://registry.npmjs.org"
 
+      - name: Upgrade npm (Trusted Publishing requires >=11.5.1)
+        run: npm install -g npm@latest
+
+      - name: Verify tag matches package.json version
+        run: |
+          set -euo pipefail
+          TAG_RAW="${GITHUB_REF_NAME:-${{ inputs.tag }}}"
+          TAG="${TAG_RAW#v}"
+          PKG=$(node -p "require('./package.json').version")
+          if [ "$TAG" != "$PKG" ]; then
+            echo "::error::Tag v$TAG does not match package.json version v$PKG"
+            exit 1
+          fi
+          echo "OK: tag v$TAG matches package.json v$PKG"
+
       - name: Install dependencies (frozen lockfile)
         run: npm ci
 
-      - name: Typecheck
-        run: npx tsc --noEmit
+      - name: Typecheck + build + test (regression gate)
+        run: |
+          npx tsc --noEmit
+          npm run build
+          npm run coverage
 
-      - name: Build
-        run: npm run build
-
-      - name: Run tests with coverage (gate against regression)
-        run: npm run coverage
-
-      - name: Pack the tarball (preview what npm will see)
+      - name: Preview the tarball
         run: |
           npm pack --dry-run
           npm pack
           ls -lh openclaw-hawkins-*.tgz
 
-      - name: Publish to npm (with provenance)
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Publish to npm (Trusted Publishing + provenance)
         run: npm publish --provenance --access public
 
-      - name: Install the clawhub CLI
-        run: npm i -g clawhub
-
-      - name: Publish to ClawHub
-        env:
-          CLAWHUB_TOKEN: ${{ secrets.CLAWHUB_TOKEN }}
-        run: |
-          clawhub package publish . \
-            --family code-plugin \
-            --name openclaw-hawkins \
-            --version "${{ steps.resolve.outputs.version }}" \
-            --tags latest \
-            --source-repo "${{ github.repository }}" \
-            --source-commit "${{ github.sha }}" \
-            --source-ref "${{ steps.resolve.outputs.tag }}" \
-            --json
-
-      - name: Upload tarball as workflow artifact (for audit)
+      - name: Upload tarball as workflow artifact (audit)
         uses: actions/upload-artifact@v4
         with:
-          name: npm-tarball-${{ steps.resolve.outputs.tag }}
+          name: npm-tarball-${{ github.ref_name }}
           path: openclaw-hawkins-*.tgz
           if-no-files-found: error
+
+  publish-clawhub:
+    name: publish to ClawHub
+    needs: publish-npm
+    permissions:
+      contents: read
+      id-token: write
+    uses: openclaw/clawhub/.github/workflows/package-publish.yml@v0.15.0
+    with:
+      source: ${{ github.repository }}@${{ github.ref_name }}
+      dry_run: false
+    secrets:
+      clawhub_token: ${{ secrets.CLAWHUB_TOKEN }}

@@ -2,75 +2,107 @@
 
 Releases are **tag-driven**. Push a `vX.Y.Z` tag on `main` and the
 [`Release` workflow](.github/workflows/release.yml) publishes the **same
-build artifact** to both npm and ClawHub. The tag is the source of truth — if
-`package.json#version` and the tag disagree, the workflow refuses to publish.
+build artifact** to both npm and ClawHub. The tag is the source of truth —
+if `package.json#version` and the tag disagree, the workflow refuses to
+publish.
 
 ## One-time setup (repo owner / maintainer)
 
-Two GitHub Actions secrets are required:
+### npm — Trusted Publishing (no long-lived token)
 
-| Secret name      | Where to get it                                                                                                | Scope                                  |
-| ---------------- | --------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
-| `NPM_TOKEN`      | npmjs.com → _Access Tokens_ → **Automation** token (read & publish). Use a CI-scoped token, not your personal. | `publish` on `openclaw-hawkins`        |
-| `CLAWHUB_TOKEN`  | ClawHub dashboard → _Account_ → API tokens → **Publish** scope.                                                 | `package publish` for your handle      |
+This package uses **npm Trusted Publishing** (OIDC). There is no
+`NPM_TOKEN` secret to manage; npm validates a short-lived OIDC token
+issued by GitHub Actions at publish time and accepts it because the
+package is configured to trust this repo + workflow.
 
-Add them via the repo's _Settings → Secrets and variables → Actions → New repository secret_.
+Configure it once on npmjs.com:
 
-The workflow also relies on **npm provenance**, which uses OIDC — no extra
-secret needed; GitHub Actions issues a short-lived token automatically when
-`permissions: id-token: write` is set on the job (it is).
+1. Sign in to <https://www.npmjs.com>.
+2. **Pre-publication path (the package doesn't exist on npm yet):**
+   - Top-right avatar → **Trusted Publishers** → **Add publisher**.
+   - **Package name:** `openclaw-hawkins`
+   - **Ecosystem:** `npm`
+   - **Provider:** `GitHub Actions`
+   - **Organization or user:** `parijatmukherjee`
+   - **Repository:** `openclaw-hawkins`
+   - **Workflow filename:** `release.yml`
+   - **Environment:** _(leave blank)_
+3. **Post-publication path (the package already exists):**
+   - <https://www.npmjs.com/package/openclaw-hawkins/access> →
+     **Trusted Publishers** → **Add publisher** → same fields as above.
+
+The workflow already declares `permissions: id-token: write` so the OIDC
+token is minted automatically.
+
+The workflow also `npm install -g npm@latest` before publishing, because
+Trusted Publishing requires npm CLI **≥ 11.5.1**.
+
+### ClawHub — single secret
+
+ClawHub still uses a token (no OIDC support yet for `clawhub package publish`).
+Add a single repo secret:
+
+1. ClawHub dashboard → **Account** → **API tokens** → **New token**.
+2. Scope: `package publish` for handle `parijatmukherjee`.
+3. Copy the token.
+4. GitHub repo → **Settings → Secrets and variables → Actions →
+   New repository secret**:
+   - **Name:** `CLAWHUB_TOKEN`
+   - **Value:** the token
+
+The release workflow calls the reusable
+`openclaw/clawhub/.github/workflows/package-publish.yml@v0.15.0` for the
+ClawHub side — no `clawhub` CLI install in our own workflow, no custom
+publish flags.
 
 ## Cutting a release
 
-1. **Bump the version** in `package.json` (e.g. `1.0.0` → `1.0.1` or
-   `1.0.0` → `1.1.0` per semver). Commit on a release branch or main:
+1. **Bump the version** in `package.json`:
 
    ```bash
    git checkout main && git pull
-   npm version patch        # 1.0.0 → 1.0.1  (also creates a v1.0.1 tag locally)
+   npm version patch        # 1.0.0 → 1.0.1  (creates v1.0.1 tag locally)
    # or:  npm version minor / npm version major
-   # or:  edit package.json by hand if you prefer:
-   #        sed -i 's/"version": "1.0.0"/"version": "1.0.1"/' package.json
-   #        git commit -am "chore: bump version to 1.0.1"
-   #        git tag v1.0.1
    ```
 
-   `npm version` is the safer path — it bumps `package.json`, commits, and
-   creates the matching tag in one transaction.
+   `npm version` is the safest path — it bumps `package.json`, commits,
+   and creates the matching tag in one transaction.
 
-2. **Push the commit and tag together** so the tag lands with its content:
+2. **Push the commit and tag together:**
 
    ```bash
    git push origin main --follow-tags
-   # or, explicit:
-   git push origin main
-   git push origin v1.0.1
    ```
 
-3. **Watch the workflow.** GitHub Actions → _Release_ run. It will:
-   1. Verify the tag matches `package.json#version`.
-   2. Install deps with a frozen lockfile, typecheck, build, run coverage.
-   3. `npm publish --provenance --access public` — publishes to
-      `https://registry.npmjs.org/openclaw-hawkins/<version>`.
-   4. `clawhub package publish` — publishes the same source tree to ClawHub
-      with the version, source repo, source ref, and source commit recorded
-      so the release is traceable back to this exact commit.
+3. **Watch the workflow.** GitHub Actions → _Release_ run. Two jobs:
+   - `publish-npm` — verifies the tag matches `package.json#version`,
+     runs typecheck + build + coverage, then `npm publish --provenance
+     --access public`. Trusted Publishing validates the OIDC token
+     against the publisher entry you configured above.
+   - `publish-clawhub` — runs only if the npm job succeeds. Uses the
+     ClawHub reusable workflow with `source =
+     parijatmukherjee/openclaw-hawkins@<tag>`.
 
-4. **Verify.** A few minutes after the workflow succeeds:
+4. **Verify** after the run goes green:
 
    ```bash
    # npm
    npm view openclaw-hawkins version
-   npm view openclaw-hawkins.openclaw   # confirms the openclaw.extensions block landed
+   npm view openclaw-hawkins.openclaw    # plugin extension block
 
    # ClawHub
    openclaw plugins search openclaw-hawkins
+
+   # End-to-end install
+   openclaw plugins install clawhub:openclaw-hawkins
+   openclaw plugins inspect openclaw-hawkins --runtime --json \
+     | jq '.plugin | {status, toolNames}'
    ```
 
 ## Manual one-off (without a tag — emergency only)
 
-The workflow also supports `workflow_dispatch` with a `tag` input, but the
-tag still has to exist on `main` first. Manual dispatch is only useful for
+The workflow supports `workflow_dispatch` with a `tag` input, but the tag
+still has to exist on `main` first. Manual dispatch is only useful for
 retrying a failed publish — never use it to publish a version that isn't
 already tagged in git, or the npm artifact won't match the source.
 
@@ -84,16 +116,16 @@ already tagged in git, or the npm artifact won't match the source.
 
 ## What gets shipped
 
-`package.json#files` controls the npm tarball contents. As of this writing
-the tarball contains:
+`package.json#files` controls the npm tarball contents. As of v1.0.0 the
+tarball contains 112 files / ~98 KB packed:
 
 ```
 dist/                            # compiled TypeScript
 vines/{spec.md,schema.sql}       # VINES contract + DDL
 vecna/{spec.md,schema.sql}       # VECNA contract + DDL
 scripts/{bootstrap-vines-db.sh,bootstrap-vecna-db.sh}
-agents/                          # 6 specialist agent AGENTS.md templates
-orchestrator/HAWKINS_PROTOCOL.md # the doc that teaches the Nexus the plugin tools
+agents/                          # 6 specialist AGENTS.md + IDENTITY.md.template
+orchestrator/HAWKINS_PROTOCOL.md # teaches the Nexus the plugin tools
 openclaw.plugin.json             # plugin manifest
 README.md, INSTALL.md, LICENSE
 ```
