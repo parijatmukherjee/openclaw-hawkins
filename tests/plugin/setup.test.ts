@@ -147,9 +147,12 @@ describe("runSetup", () => {
 
   it("skips agents whose workspace already exists", async () => {
     // First two workspace paths exist; the rest don't.
+    // (HAWKINS_PROTOCOL.md path is checked separately by `installNexusProtocol`
+    // before this loop runs — exclude it from the workspace counter.)
     let workspaceQueries = 0;
     statMock.mockImplementation(async (p: string) => {
       if (p.endsWith("AGENTS.md")) return { isFile: () => true } as never;
+      if (p.endsWith("HAWKINS_PROTOCOL.md")) throw new Error("ENOENT");
       workspaceQueries += 1;
       if (workspaceQueries <= 2) return { isFile: () => false } as never;
       throw new Error("ENOENT");
@@ -195,5 +198,50 @@ describe("runSetup", () => {
       const [bin] = call as unknown as [string, string[]];
       expect(bin).toBe("/opt/openclaw/bin/openclaw");
     }
+  });
+
+  it("installs HAWKINS_PROTOCOL.md into the Nexus workspace when missing", async () => {
+    // AGENTS.md present (for the per-agent overlay); HAWKINS_PROTOCOL.md
+    // source present (it's bundled), dst missing → should copy.
+    statMock.mockImplementation(async (p: string) => {
+      if (p.endsWith("AGENTS.md")) return { isFile: () => true } as never;
+      if (p.endsWith("orchestrator/HAWKINS_PROTOCOL.md")) {
+        return { isFile: () => true } as never;
+      }
+      // The destination doesn't exist yet → triggers copy.
+      throw new Error("ENOENT");
+    });
+    await runSetup({
+      pluginConfig: PLUGIN_CONFIG,
+      agentsBaseDir: "/tmp/agents-test",
+      log,
+    });
+    // The protocol file is one of the copyFile targets.
+    const protocolCopy = copyFileMock.mock.calls.find((c) =>
+      String((c as unknown as [string, string])[1]).endsWith("HAWKINS_PROTOCOL.md"),
+    );
+    expect(protocolCopy).toBeDefined();
+    expect(logs.some((line) => line.includes("installed Nexus protocol"))).toBe(true);
+  });
+
+  it("leaves an existing HAWKINS_PROTOCOL.md alone (no overwrite)", async () => {
+    statMock.mockImplementation(async (p: string) => {
+      if (p.endsWith("AGENTS.md")) return { isFile: () => true } as never;
+      // BOTH the bundled source AND the deployed copy exist — must NOT overwrite.
+      if (p.endsWith("HAWKINS_PROTOCOL.md")) return { isFile: () => true } as never;
+      throw new Error("ENOENT");
+    });
+    await runSetup({
+      pluginConfig: PLUGIN_CONFIG,
+      agentsBaseDir: "/tmp/agents-test",
+      log,
+    });
+    const protocolCopy = copyFileMock.mock.calls.find((c) =>
+      String((c as unknown as [string, string])[1]).endsWith("HAWKINS_PROTOCOL.md"),
+    );
+    expect(protocolCopy).toBeUndefined();
+    expect(
+      logs.some((line) => line.includes("left untouched") || line.includes("already exists")),
+    ).toBe(true);
   });
 });

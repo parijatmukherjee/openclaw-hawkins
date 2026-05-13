@@ -77,10 +77,16 @@ export async function runSetup(opts: SetupOptions): Promise<{
   schemasApplied.push("vecna");
   log("  ok: vecna_hive schema applied");
 
+  // Install the Nexus protocol doc unconditionally — it's how the
+  // orchestrator agent learns the 12-tool vocabulary + when to call each.
+  // Runs even with --skip-agents so the Nexus is aware of the tools even
+  // when the operator has provisioned agents some other way.
+  const protocolInstalled = await installNexusProtocol(log);
+
   if (opts.skipAgents) {
     log("\nopenclaw-hawkins setup — skipping agent creation (--skip-agents)");
     log("");
-    printPostInstallBanner(log, { agentsCreated: false });
+    printPostInstallBanner(log, { agentsCreated: false, protocolInstalled });
     return { schemasApplied, agentsCreated, agentsSkipped };
   }
 
@@ -121,9 +127,42 @@ export async function runSetup(opts: SetupOptions): Promise<{
   }
 
   log("");
-  printPostInstallBanner(log, { agentsCreated: true, agentsBase });
+  printPostInstallBanner(log, {
+    agentsCreated: true,
+    agentsBase,
+    protocolInstalled,
+  });
 
   return { schemasApplied, agentsCreated, agentsSkipped };
+}
+
+/**
+ * Copies the plugin's `HAWKINS_PROTOCOL.md` into the Nexus's workspace
+ * (`~/.openclaw/workspace/HAWKINS_PROTOCOL.md`) so the orchestrator agent
+ * learns the 12-tool vocabulary + orchestration sequence at next gateway
+ * start. Returns:
+ *   - "installed"  — copied successfully
+ *   - "exists"     — file already present, left untouched
+ *   - "skipped"    — source not bundled (shouldn't happen in published pkg)
+ */
+async function installNexusProtocol(
+  log: (line: string) => void,
+): Promise<"installed" | "exists" | "skipped"> {
+  const src = join(PACKAGE_ROOT, "orchestrator", "HAWKINS_PROTOCOL.md");
+  const workspace = join(process.env.HOME ?? "", ".openclaw", "workspace");
+  const dst = join(workspace, "HAWKINS_PROTOCOL.md");
+
+  if (!(await pathExists(src))) return "skipped";
+
+  if (await pathExists(dst)) {
+    log(`\nopenclaw-hawkins setup — Nexus protocol already at ${dst} (leaving alone)`);
+    return "exists";
+  }
+
+  await mkdir(workspace, { recursive: true });
+  await copyFile(src, dst);
+  log(`\nopenclaw-hawkins setup — installed Nexus protocol → ${dst}`);
+  return "installed";
 }
 
 /**
@@ -134,7 +173,11 @@ export async function runSetup(opts: SetupOptions): Promise<{
  */
 export function printPostInstallBanner(
   log: (line: string) => void,
-  opts: { agentsCreated: boolean; agentsBase?: string },
+  opts: {
+    agentsCreated: boolean;
+    agentsBase?: string;
+    protocolInstalled?: "installed" | "exists" | "skipped";
+  },
 ): void {
   const bar = "─".repeat(72);
   log(bar);
@@ -154,6 +197,30 @@ export function printPostInstallBanner(
   log("Verify everything is wired up:");
   log("  openclaw plugins inspect openclaw-hawkins --runtime --json");
   log("  openclaw agent --agent system-agent --message 'Call vecna_healthz and report the JSON.'");
+  log("");
+  // Tell the operator what happened with the Nexus protocol doc — critical
+  // for "does my orchestrator know to use the tools" awareness.
+  switch (opts.protocolInstalled) {
+    case "installed":
+      log("Nexus protocol doc: installed at ~/.openclaw/workspace/HAWKINS_PROTOCOL.md.");
+      log("  Your orchestrator agent will pick it up on the next gateway restart and learn");
+      log("  the 12-tool vocabulary + when-to-call-what sequence.");
+      break;
+    case "exists":
+      log(
+        "Nexus protocol doc: ~/.openclaw/workspace/HAWKINS_PROTOCOL.md already exists — left untouched.",
+      );
+      log("  If your orchestrator can't find the tools, diff against this repo's copy at:");
+      log(`    ${join(PACKAGE_ROOT, "orchestrator", "HAWKINS_PROTOCOL.md")}`);
+      break;
+    case "skipped":
+    case undefined:
+      log("Nexus protocol doc: NOT installed (bundled file missing). Copy it manually:");
+      log(
+        `    cp ${join(PACKAGE_ROOT, "orchestrator", "HAWKINS_PROTOCOL.md")} ~/.openclaw/workspace/HAWKINS_PROTOCOL.md`,
+      );
+      break;
+  }
   log("");
   log("Next steps to finish your Nexus + Tendrils swarm:");
   if (!opts.agentsCreated) {

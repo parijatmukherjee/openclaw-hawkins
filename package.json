@@ -51,6 +51,7 @@
     "scripts/bootstrap-vines-db.sh",
     "scripts/bootstrap-vecna-db.sh",
     "agents",
+    "orchestrator/HAWKINS_PROTOCOL.md",
     "openclaw.plugin.json",
     "README.md",
     "INSTALL.md",

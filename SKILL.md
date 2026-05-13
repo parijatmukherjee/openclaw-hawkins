@@ -229,9 +229,23 @@ EOF
 systemctl --user daemon-reload
 openclaw gateway restart
 
-# 5. One-shot provisioning: schemas + 6 agents + AGENTS.md overlay.
+# 5. One-shot provisioning: schemas + 6 agents + AGENTS.md overlay +
+#    Nexus protocol doc (~/.openclaw/workspace/HAWKINS_PROTOCOL.md).
 openclaw hawkins setup
+
+# 6. Restart the gateway so the orchestrator agent picks up the new
+#    HAWKINS_PROTOCOL.md from its workspace.
+openclaw gateway restart
 ```
+
+**Critical** — the gateway restart in step 6 is **not optional**. Without it
+the 12 tools are registered with the runtime but the orchestrator agent
+hasn't re-read its workspace, so it doesn't know the tools exist or in what
+sequence to call them. The symptom (real failure mode I've seen) is the
+orchestrator saying "the plugin tools aren't directly accessible yet" and
+falling back to legacy CLI commands. The fix is always: ensure
+`~/.openclaw/workspace/HAWKINS_PROTOCOL.md` is present and the gateway has
+been restarted since it was added.
 
 **VERIFY (plugin path)**
 
@@ -240,13 +254,23 @@ openclaw plugins inspect openclaw-hawkins --runtime --json \
   | jq -e '.plugin.status=="loaded" and (.plugin.toolNames|length==12)' \
   && echo "plugin ok" || echo "plugin NOT ok"
 
+test -f ~/.openclaw/workspace/HAWKINS_PROTOCOL.md \
+  && echo "nexus protocol ok" || echo "nexus protocol MISSING (run: cp <pkg>/orchestrator/HAWKINS_PROTOCOL.md ~/.openclaw/workspace/)"
+
 openclaw agent --agent system-agent --json --timeout 90 \
   --message "Call vecna_healthz and return only the JSON." \
   | jq -e '.result.payloads[0].text | fromjson | .ok==true and .db=="up"' \
   && echo "vecna_healthz ok" || echo "vecna_healthz NOT ok"
+
+# Verify the orchestrator agent (not just a specialist) can use the tools.
+# This is the test that catches the protocol-doc-missing failure mode.
+openclaw agent --agent main --json --timeout 90 \
+  --message "Call vines_recover with no arguments and return only the .summary object." \
+  | jq -e '.result.payloads[0].text | fromjson | has("scanned") and has("linearAvailable")' \
+  && echo "nexus tool-use ok" || echo "nexus tool-use NOT ok (HAWKINS_PROTOCOL.md likely missing from workspace)"
 ```
 
-If both verifications pass, **skip Steps 1, 5.5, 5.6, and 6** (the plugin
+If all four verifications pass, **skip Steps 1, 5.5, 5.6, and 6** (the plugin
 already did them). Continue from **Step 3** (Tendril identities) onward; the
 plugin's `hawkins setup` will have printed an exhaustive next-steps banner —
 follow it.
