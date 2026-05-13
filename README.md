@@ -4,14 +4,20 @@
 
 # 🦞 openclaw-orchestra — Multi-Agent Orchestration for OpenClaw (LLM-Powered Autonomous Workflows)
 
-[![GitHub stars](https://img.shields.io/github/stars/parijatmukherjee/openclaw-orchestra?style=social)](https://github.com/parijatmukherjee/openclaw-orchestra/stargazers)
+[![CI](https://github.com/parijatmukherjee/openclaw-orchestra/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/parijatmukherjee/openclaw-orchestra/actions/workflows/ci.yml)
+[![Coverage](https://codecov.io/gh/parijatmukherjee/openclaw-orchestra/branch/main/graph/badge.svg)](https://codecov.io/gh/parijatmukherjee/openclaw-orchestra)
+[![Node](https://img.shields.io/badge/node-%E2%89%A520-43853d?logo=node.js&logoColor=white)](https://nodejs.org)
+[![TypeScript](https://img.shields.io/badge/typescript-strict-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![Code style: Prettier](https://img.shields.io/badge/code_style-prettier-ff69b4?logo=prettier&logoColor=white)](https://prettier.io)
+[![Lint: ESLint](https://img.shields.io/badge/lint-eslint-4b32c3?logo=eslint&logoColor=white)](https://eslint.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/parijatmukherjee/openclaw-orchestra?style=social)](https://github.com/parijatmukherjee/openclaw-orchestra/stargazers)
 
-**🎼 Drop-in multi-agent orchestration pattern for [OpenClaw](https://openclaw.ai).**
+**🎼 Drop-in multi-agent orchestration pattern for [OpenClaw](https://openclaw.ai), with an optional durable-state layer powered by MariaDB + Linear.**
 
 > ⭐ **Find this useful?** Hit the star button up top — it helps other OpenClaw operators discover the pattern, and it tells me whether to keep iterating on it. Thank you. 🙏
 
-One conversational orchestrator + six isolated specialist agents (🔧 `system`, ⌨️ `code`, 🔍 `research`, 📊 `data`, ✉️ `comm`, 👁️ `vision`). The operator only talks to the orchestrator. Specialists do the heavy lifting in their own workspaces, with their own memory and tools. Optional 📋 Linear-backed ticket oversight gives you a live board of what the swarm is working on.
+What you get, in one paragraph: one conversational **orchestrator** + six isolated specialist agents (🔧 `system`, ⌨️ `code`, 🔍 `research`, 📊 `data`, ✉️ `comm`, 👁️ `vision`). The operator only ever talks to the orchestrator. Specialists do the heavy lifting in their own workspaces, with their own memory and tools. Layered on top — and entirely optional — is **ASO** (Agentic Swarm Orchestrator), a Node/TypeScript library that adds 📋 Linear-backed ticket oversight, a `orchestration_ledger` row per request in MariaDB, an activation gate (spec §3.1), and crash-resilient resume (spec §4.2).
 
 ```
 ┌─────────────────────────────────────────┐
@@ -91,9 +97,15 @@ openclaw agent --agent system-agent --message "Introduce yourself in one line." 
 
 ## ✅ Prerequisites
 
+**Specialist pattern (the minimum):**
+
 - 🐚 **OpenClaw ≥ 2026.5.7** with the gateway running. Check: `openclaw --version` and `openclaw gateway status`.
-- 🧠 **At least one working model with auth.** Defaults assume `ollama/kimi-k2.6:cloud` (text) and `ollama/kimi-k2.5:cloud` (vision). Substitute Anthropic / OpenAI / Groq / etc. via env vars to `setup.sh`.
-- 🔐 **(Optional)** `op` (1Password CLI) and a Linear account if you want ticket oversight.
+- 🧠 **At least one working model with auth.** Defaults assume `ollama/kimi-k2.6:cloud` (text) and `ollama/kimi-k2.5:cloud` (vision). Substitute OpenAI / Groq / any Anthropic-compatible provider / etc. via env vars to `setup.sh`.
+
+**Optional add-ons:**
+
+- 🔐 `op` (1Password CLI) + a **Linear** account if you want ticket oversight.
+- 🟢 **Node ≥ 20** + a **MariaDB** instance (local or cloud, TLS supported including self-signed via `MARIADB_SSL=insecure`) if you want the **ASO** durable-state layer.
 
 ---
 
@@ -128,14 +140,14 @@ If Linear is wired up, a parent ticket + sub-ticket(s) record this whole chain o
 
 Six specialist agents, each isolated:
 
-| | Agent | Scope | Default model |
-|---|-------|-------|---------------|
-| 🔧 | `system-agent` | apt, systemd, ufw, cron, disk, logs, host config | `ollama/kimi-k2.6:cloud` |
-| ⌨️ | `code-agent` | software dev, debugging, testing, git | `ollama/kimi-k2.6:cloud` |
-| 🔍 | `research-agent` | web research, comparisons, sourced reports | `ollama/kimi-k2.6:cloud` |
-| 📊 | `data-agent` | CSV/JSON/Excel parsing, analysis, charts | `ollama/kimi-k2.6:cloud` |
-| ✉️ | `comm-agent` | email/chat drafts, calendar (always drafts — never auto-sends) | `ollama/kimi-k2.6:cloud` |
-| 👁️ | `vision-agent` | image analysis, OCR, screenshots | `ollama/kimi-k2.5:cloud` (vision-capable) |
+|     | Agent            | Scope                                                          | Default model                             |
+| --- | ---------------- | -------------------------------------------------------------- | ----------------------------------------- |
+| 🔧  | `system-agent`   | apt, systemd, ufw, cron, disk, logs, host config               | `ollama/kimi-k2.6:cloud`                  |
+| ⌨️  | `code-agent`     | software dev, debugging, testing, git                          | `ollama/kimi-k2.6:cloud`                  |
+| 🔍  | `research-agent` | web research, comparisons, sourced reports                     | `ollama/kimi-k2.6:cloud`                  |
+| 📊  | `data-agent`     | CSV/JSON/Excel parsing, analysis, charts                       | `ollama/kimi-k2.6:cloud`                  |
+| ✉️  | `comm-agent`     | email/chat drafts, calendar (always drafts — never auto-sends) | `ollama/kimi-k2.6:cloud`                  |
+| 👁️  | `vision-agent`   | image analysis, OCR, screenshots                               | `ollama/kimi-k2.5:cloud` (vision-capable) |
 
 Each one is a **true top-level OpenClaw agent** (`openclaw agents add <id>`) — not a subagent — with its own `~/.openclaw/agents/<id>/workspace/`, its own memory dir, its own scoped persona in `AGENTS.md`.
 
@@ -265,6 +277,33 @@ openclaw-orchestra/
 - 🚦 **Parallel cap.** No more than 2 specialist dispatches in flight at once. Sequential by default.
 - 🩹 **Failure handling.** Specialist timeouts and errors get surfaced in plain language with next-step options. No raw stack traces at the operator.
 - 🔒 **No secrets** in tickets, comments, or specialist replies passed through. Truncate or redact before logging.
+
+---
+
+## 🧪 Quality
+
+Each badge at the top of this README maps to a real, enforced gate:
+
+| Badge                         | What it guarantees                                                                                                                                                                                              |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 🟢 **CI**                     | Every push and PR runs the full pipeline below on Node 20 and 22. PRs cannot merge red.                                                                                                                         |
+| 📊 **Coverage**               | `vitest --coverage` with v8 — gated at **statements ≥ 95 %, functions ≥ 95 %, branches ≥ 90 %, lines ≥ 95 %**. Falling below these fails CI. Latest run: statements 99.14 %, functions 100 %, branches 92.77 %. |
+| 📘 **TypeScript: strict**     | `tsconfig.json` enables `strict`, `noUnusedLocals`, `noUnusedParameters`, `exactOptionalPropertyTypes`, `useUnknownInCatchVariables`, `noImplicitOverride`.                                                     |
+| 💅 **Code style: Prettier**   | `npm run format:check` runs in CI.                                                                                                                                                                              |
+| 🧹 **Lint: ESLint**           | Flat config with `typescript-eslint` _recommended-type-checked_. PRs with lint errors fail CI.                                                                                                                  |
+| 🐚 **(Hidden)** Shell scripts | `shellcheck` runs against `scripts/` in CI.                                                                                                                                                                     |
+
+### Run the suites locally
+
+```bash
+make install           # one-time
+make check             # lint + format-check + typecheck + tests (the CI gate)
+make coverage          # tests with coverage thresholds enforced
+make smoke             # smoke tests against real MariaDB / Linear / openclaw
+                       # (auto-skipped when env vars are absent — see CONTRIBUTING.md)
+```
+
+The smoke suite under `tests/smoke/` exists _in addition_ to the hermetic unit suite. It's gated on env-var presence (`MARIADB_URL`, `LINEAR_API_KEY`, …) so contributors can run `make check` safely without any secrets while operators can verify the wiring end-to-end with real services.
 
 ---
 
