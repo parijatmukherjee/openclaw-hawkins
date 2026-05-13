@@ -8,7 +8,25 @@
 import { createPool, type Pool, type PoolConnection } from "mariadb";
 import { randomUUID } from "node:crypto";
 
-import { sslOptionFor, type DBConfig } from "../config.js";
+import { attachDbCredential, sslOptionFor, type DBConfig } from "../config.js";
+
+/** Build a mariadb pool config from a `DBConfig`. */
+function buildPoolConfig(db: DBConfig) {
+  return attachDbCredential(
+    {
+      host: db.host,
+      port: db.port,
+      user: db.user,
+      database: db.database,
+      ssl: sslOptionFor(db.sslMode),
+      connectionLimit: 8,
+      acquireTimeout: 10_000,
+      socketTimeout: 30_000,
+      multipleStatements: false,
+    },
+    db.password,
+  );
+}
 import type {
   ConnectInput,
   ConnectResult,
@@ -33,18 +51,7 @@ export class HiveStore {
 
   constructor(opts: HiveStoreOptions) {
     this.dedupWindowMinutes = opts.dedupWindowMinutes;
-    this.pool = createPool({
-      host: opts.db.host,
-      port: opts.db.port,
-      user: opts.db.user,
-      password: opts.db.password,
-      database: opts.db.database,
-      ssl: sslOptionFor(opts.db.sslMode),
-      connectionLimit: 8,
-      acquireTimeout: 10_000,
-      socketTimeout: 30_000,
-      multipleStatements: false,
-    });
+    this.pool = createPool(buildPoolConfig(opts.db));
   }
 
   async close(): Promise<void> {

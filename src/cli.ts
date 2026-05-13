@@ -34,7 +34,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { createConnection } from "mariadb";
 
-import { loadDBConfig, sslOptionFor } from "./config.js";
+import { attachDbCredential, loadDBConfig, sslOptionFor } from "./config.js";
 import { LinearClient } from "./linear-client.js";
 import { triage } from "./orchestrator.js";
 import { Ledger } from "./persistence.js";
@@ -204,15 +204,19 @@ async function initDb(): Promise<number> {
     .map((s) => s.trim())
     .filter((s) => s.length > 0);
 
-  const conn = await createConnection({
-    host: config.host,
-    port: config.port,
-    user: config.user,
-    password: config.password,
-    database: config.database,
-    ssl: sslOptionFor(config.sslMode),
-    multipleStatements: false,
-  });
+  const conn = await createConnection(
+    attachDbCredential(
+      {
+        host: config.host,
+        port: config.port,
+        user: config.user,
+        database: config.database,
+        ssl: sslOptionFor(config.sslMode),
+        multipleStatements: false,
+      },
+      config.password,
+    ),
+  );
   try {
     for (const stmt of statements) {
       await conn.query(stmt);

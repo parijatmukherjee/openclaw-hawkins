@@ -19,7 +19,7 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { createConnection } from "mariadb";
 
-import { sslOptionFor } from "../config.js";
+import { attachDbCredential, sslOptionFor } from "../config.js";
 import { resolveDBConfig, type HawkinsPluginConfig } from "./config.js";
 
 const execFileP = promisify(execFile);
@@ -271,15 +271,19 @@ async function applySchemaFile(path: string, pluginConfig: HawkinsPluginConfig):
     .map((s) => s.trim())
     .filter((s) => s.length > 0);
 
-  const conn = await createConnection({
-    host: cfg.host,
-    port: cfg.port,
-    user: cfg.user,
-    password: cfg.password,
-    database: cfg.database,
-    ssl: sslOptionFor(cfg.sslMode),
-    multipleStatements: false,
-  });
+  const conn = await createConnection(
+    attachDbCredential(
+      {
+        host: cfg.host,
+        port: cfg.port,
+        user: cfg.user,
+        database: cfg.database,
+        ssl: sslOptionFor(cfg.sslMode),
+        multipleStatements: false,
+      },
+      cfg.password,
+    ),
+  );
   try {
     for (const stmt of statements) {
       await conn.query(stmt);

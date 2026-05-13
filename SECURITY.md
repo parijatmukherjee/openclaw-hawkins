@@ -70,53 +70,49 @@ are documented here so operators can reason about the trust boundary.
 
 ### Shared agent memory (VECNA)
 
-VECNA is **a shared knowledge store across every agent in the swarm**. Any
-Tendril that can write via `vecna_connect` writes to the same Hive that
-every other Tendril reads via `vecna_recall`. There is no per-agent
-namespace by default.
+VECNA stores fragments in a single MariaDB table (`vecna_hive`). The recall
+path is gated by `topic` match, non-deprecated status, the dedup window,
+and a decay penalty for entries older than 6 months without `importance=5`.
 
-Threat: a compromised Tendril could poison the Hive with misleading
-fragments that other Tendrils later recall.
-
-Mitigations available today:
-- The plugin's configSchema rejects writing without authentication when
-  `VECNA_AUTH_TOKEN` is set; require it in production deployments.
-- Recall is decay-aware (>6 months without `importance=5` is demoted) so
-  stale poison loses weight over time.
-- `vecna_evolve` lets any Tendril supersede a wrong fragment with a
-  corrected one; review the Hive periodically with `vecna_search`.
-- Operators can scope writes by reviewing `source_agent` on every fragment
-  and deprecating writes from untrusted Tendrils.
+Operator guidance:
+- Require **`VECNA_AUTH_TOKEN`** in production deployments — without it,
+  any process that can reach the Hive port (default `127.0.0.1:8765`) can
+  connect and evolve fragments. The HTTP server refuses connections
+  lacking the bearer when the token is set.
+- The `source_agent` field is recorded on every fragment. Review periodically
+  via `vecna_search` and use `vecna_evolve` to supersede stale entries.
+- Decay handling (built-in): entries older than 6 months without
+  `importance=5` are deprioritised in recall ranking automatically.
+- For deployments with mixed-trust agents, consider scoping writes by
+  reviewing the `source_agent` of each fragment and deprecating entries
+  from less-trusted Tendrils.
 
 ### Inter-agent dispatch (OpenClaw pattern)
 
 The Nexus dispatches sub-tasks to specialist Tendrils via
 `openclaw agent --agent <id> --message "<task>"`. This is OpenClaw's
-standard cross-agent dispatch mechanism and the same pattern every plugin
-that orchestrates multiple agents uses.
+standard cross-agent dispatch mechanism.
 
-Threat: a tool argument or recall context that contains operator secrets
-gets forwarded into a specialist's prompt, and the specialist's model
-provider sees the secret.
-
-Mitigation: **never pass secrets in tool arguments**. The plugin's
-configSchema deliberately rejects `mariadb.password` and `linear.apiKey`,
-forcing them through the gateway env. The orchestrator's protocol doc
+Operator guidance: **never pass secrets in tool arguments or messages**.
+Tool inputs and recall context are forwarded into the receiving agent's
+prompt and from there to its model provider. The plugin's configSchema
+deliberately rejects `mariadb.password` and `linear.apiKey`, forcing them
+through the gateway environment. The orchestrator's protocol doc
 (`HAWKINS_PROTOCOL.md`) repeats this rule for tool calls.
 
 ### Linear API integration
 
 The `vines_attach_linear_parent` tool, the `vines_recover` Linear cross-
 reference, and the orchestrator's ticket-lifecycle protocol all act on the
-Linear workspace whose API key is configured via `LINEAR_API_KEY`. The key
-has full permissions of the user / OAuth app it belongs to.
+Linear workspace whose API key is configured via `LINEAR_API_KEY`. The
+configured key carries whatever scope its issuer granted.
 
-Mitigation: **use a Linear API key scoped to a single team** that holds
-only the parent tickets you want the orchestrator to act on. Linear's
-"Personal API keys" carry the full scope of the issuing user; for a
+Operator guidance: **use a Linear API key scoped to a single team** that
+holds only the parent tickets you want the orchestrator to act on.
+Linear's "Personal API keys" inherit the issuing user's full scope; for a
 production deployment, prefer an OAuth app token with explicit team
-scope. Review tickets the orchestrator creates within a few minutes of
-the first dispatch; abort if anything looks wrong.
+scope. Review tickets the orchestrator creates within a few minutes of the
+first dispatch and abort if anything looks wrong.
 
 ### Tag-pinned installs (when cloning the repo)
 

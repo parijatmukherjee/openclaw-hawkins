@@ -129,7 +129,7 @@ describe("sslOptionFor", () => {
   it("disabled → false", () => {
     expect(sslOptionFor("disabled")).toBe(false);
   });
-  it("insecure → rejectUnauthorized:false", () => {
+  it("insecure SSL mode skips cert verification", () => {
     expect(sslOptionFor("insecure")).toEqual({ rejectUnauthorized: false });
   });
   it("preferred → rejectUnauthorized:true", () => {

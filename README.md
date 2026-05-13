@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="banner.png" alt="openclaw-hawkins — The Nexus · The Tendrils · The Hive — Everything is Connected" width="100%">
+  <img src="https://drive.google.com/uc?export=view&id=1NgcqDQd7dUzFsSWdC67oNJVNJREBcdwh" alt="openclaw-hawkins — The Nexus · The Tendrils · The Hive — Everything is Connected" width="100%">
 </p>
 
 # 🩸 Openclaw Hawkins — Multi-Agent Orchestration for OpenClaw
@@ -70,7 +70,7 @@ openclaw plugins install clawhub:openclaw-hawkins \
 openclaw hawkins setup
 ```
 
-✨ The plugin registers **12 typed tools** (`vines_*` × 6, `vecna_*` × 6) with the OpenClaw runtime — any agent in your gateway can call them by name. The `hawkins setup` command also prints an exhaustive **post-install banner** listing every tool, verification commands, and the remaining personalisation steps, so a human operator _or_ an AI installer agent can finish the install without consulting any other doc.
+✨ The plugin registers **12 typed tools** (`vines_*` × 6, `vecna_*` × 6) with the OpenClaw runtime. They become available to agents that have been granted access in your OpenClaw config — restrict to the intended Hawkins agents (Nexus + the 6 Tendrils) where possible and review tool calls for sensitive mutations. The `hawkins setup` command prints an exhaustive **post-install banner** listing every tool, verification commands, and the remaining personalisation steps, so a human operator _or_ an AI installer agent can finish the install without consulting any other doc.
 
 Configure the plugin via `openclaw config`:
 
@@ -93,7 +93,7 @@ openclaw config set plugins.entries.openclaw-hawkins.config.mariadb.ssl  "insecu
 
 ```bash
 mkdir -p ~/.openclaw/workspace/skills/openclaw-hawkins-installer
-curl -fsSL https://raw.githubusercontent.com/parijatmukherjee/openclaw-hawkins/main/SKILL.md \
+curl -fsSL https://raw.githubusercontent.com/parijatmukherjee/openclaw-hawkins/v1.0.6/SKILL.md \
   > ~/.openclaw/workspace/skills/openclaw-hawkins-installer/SKILL.md
 ```
 
@@ -109,7 +109,7 @@ curl -fsSL https://raw.githubusercontent.com/parijatmukherjee/openclaw-hawkins/m
 
 ```bash
 # 1️⃣ Clone — pin to the latest release tag so the source tree is immutable
-git clone --branch v1.0.5 --depth 1 https://github.com/parijatmukherjee/openclaw-hawkins.git ~/openclaw-hawkins
+git clone --branch v1.0.6 --depth 1 https://github.com/parijatmukherjee/openclaw-hawkins.git ~/openclaw-hawkins
 cd ~/openclaw-hawkins
 
 # 2️⃣ Create the 6 specialist agents

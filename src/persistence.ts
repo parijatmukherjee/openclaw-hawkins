@@ -14,7 +14,7 @@
 import { createPool, type Pool, type PoolConnection } from "mariadb";
 import { randomUUID } from "node:crypto";
 
-import { loadDBConfig, sslOptionFor, type DBConfig } from "./config.js";
+import { attachDbCredential, loadDBConfig, sslOptionFor, type DBConfig } from "./config.js";
 import { UNFINISHED_STATES, type LedgerState, type OrchestrationRow } from "./types.js";
 
 /**
@@ -33,21 +33,25 @@ export class Ledger {
   private closed = false;
 
   constructor(public readonly config: DBConfig) {
-    this.pool = createPool({
-      host: config.host,
-      port: config.port,
-      user: config.user,
-      password: config.password,
-      database: config.database,
-      ssl: sslOptionFor(config.sslMode),
-      connectionLimit: 5,
-      acquireTimeout: 10_000,
-      // Cap query latency so the orchestrator never wedges on a stalled DB.
-      socketTimeout: 30_000,
-      // Don't run multi-statements through us — schema migrations have their
-      // own path (`scripts/bootstrap-vines-db.sh`).
-      multipleStatements: false,
-    });
+    this.pool = createPool(
+      attachDbCredential(
+        {
+          host: config.host,
+          port: config.port,
+          user: config.user,
+          database: config.database,
+          ssl: sslOptionFor(config.sslMode),
+          connectionLimit: 5,
+          acquireTimeout: 10_000,
+          // Cap query latency so the orchestrator never wedges on a stalled DB.
+          socketTimeout: 30_000,
+          // Don't run multi-statements through us — schema migrations have their
+          // own path (`scripts/bootstrap-vines-db.sh`).
+          multipleStatements: false,
+        },
+        config.password,
+      ),
+    );
   }
 
   /** Build a {@link Ledger} from the spec §5 env vars. */
