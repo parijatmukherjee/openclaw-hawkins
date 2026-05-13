@@ -118,17 +118,18 @@ jobs:
           chmod 600 "$RUNNER_TEMP/clawhub-config.json"
           echo "CLAWHUB_CONFIG_PATH=$RUNNER_TEMP/clawhub-config.json" >> "$GITHUB_ENV"
 
-      - name: Publish to ClawHub (explicit --family code-plugin → npm-pack artifact)
+      - name: Publish to ClawHub
         run: |
           set -euo pipefail
           TAG_RAW="${GITHUB_REF_NAME:-${{ inputs.tag }}}"
           VERSION="${TAG_RAW#v}"
-          # The repo top-level has agents/ and skills/ directories, which
-          # ClawHub's auto-detector treats as bundle markers. We explicitly
-          # declare --family code-plugin so the artifact is published in the
-          # ClawPack (npm-pack) format and the readiness check clears.
+          # NOTE: --family is intentionally NOT set. The first ClawHub publish
+          # (v1.0.1) was auto-detected as `bundle-plugin` because this repo's
+          # top-level `agents/` + `skills/` directories trigger ClawHub's bundle-
+          # marker heuristic. ClawHub locks family at first publish — passing
+          # `--family code-plugin` later is rejected with "family changes are not
+          # allowed". Auto-detection on every release stays self-consistent.
           clawhub package publish "${{ github.repository }}@$TAG_RAW" \
-            --family code-plugin \
             --version "$VERSION" \
             --tags latest \
             --source-repo "${{ github.repository }}" \
