@@ -11,7 +11,7 @@
 [![Code style: Prettier](https://img.shields.io/badge/code_style-prettier-E60000?logo=prettier&logoColor=white)](https://prettier.io)
 [![Lint: ESLint](https://img.shields.io/badge/lint-eslint-4b32c3?logo=eslint&logoColor=white)](https://eslint.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-E60000.svg)](LICENSE)
-[![GitHub stars](https://img.shields.io/github/stars/parijatmukherjee/openclaw-hawkins?style=social)](https://github.com/parijatmukherjee/openclaw-hawkins/stargazers)
+[![GitHub stars](https://img.shields.io/github/stars/parijatmukherjee/openclaw-hawkins?style=flat&logo=github&logoColor=white&color=E60000&label=stars)](https://github.com/parijatmukherjee/openclaw-hawkins/stargazers)
 
 > **Everything is Connected.**
 
@@ -43,7 +43,7 @@ A drop-in multi-agent orchestration pattern for [OpenClaw](https://openclaw.ai).
                 │   🧠 The Hive — durable memory     │
                 │   • vines_ledger   (orchestration  │
                 │      state, per request)           │
-                │   • [VECNA coming next]            │
+                │   • vecna_hive  (shared knowledge) │
                 └────────────────────────────────────┘
 ```
 
@@ -51,7 +51,7 @@ Three layers, full vocabulary in [`docs/branding.md`](docs/branding.md):
 
 - **The Nexus** — the orchestrator. Operator talks only here.
 - **The Tendrils** — the six specialists. `system-agent`, `code-agent`, `research-agent`, `data-agent`, `comm-agent`, `vision-agent`.
-- **The Hive** — MariaDB-backed persistence. Today: VINES (orchestration state). Soon: VECNA (shared knowledge).
+- **The Hive** — MariaDB-backed persistence. VINES (orchestration state) + VECNA (shared knowledge fragments, see [`vecna/spec.md`](vecna/spec.md)).
 
 ---
 
@@ -333,7 +333,7 @@ The smoke suite under `tests/smoke/` exists _in addition_ to the hermetic unit s
 
 If `openclaw-hawkins` saved you from a tangled single-agent setup, **please [star the repo](https://github.com/parijatmukherjee/openclaw-hawkins/stargazers)** — it's the only signal I get that the pattern is landing, and it surfaces it to other OpenClaw operators. 🩸
 
-PRs welcome too. Especially: **VECNA** (the knowledge-sharing Hive subsystem, coming next), async dispatch, per-Tendril skill scoping, alternative ticket backends (GitHub Issues / Notion / Plane), and adapters for other agent runtimes.
+PRs welcome too. Especially: **OpenClaw plugin packaging** (tracked in [#2](https://github.com/parijatmukherjee/openclaw-hawkins/issues/2)), async dispatch, per-Tendril skill scoping, alternative ticket backends (GitHub Issues / Notion / Plane), and adapters for other agent runtimes.
 
 ---
 
