@@ -411,6 +411,122 @@ console.log(result.summary);
 The shell flow and the library API are equivalent — both implement the same
 spec §3.2 protocol on the same ledger.
 
+## 10. (Optional) Install VECNA — the Hive knowledge-sharing service
+
+VINES (above) gives each _orchestration_ durable state. **VECNA** is the
+complementary subsystem: it gives the _swarm as a whole_ a durable
+memory. When a Tendril learns something — a fix, a workaround, a
+constraint — it pushes that fragment to the Hive via `vecna connect`.
+The next orchestration on the same topic pulls it back with `vecna
+recall` and skips re-deriving it.
+
+Spec contract: [`vecna/spec.md`](vecna/spec.md). Architectural overview:
+the [README's Hive section](README.md).
+
+### 10.1 Prerequisites
+
+Same as VINES — Node ≥ 20 plus a MariaDB instance. VECNA reuses the
+`MARIADB_*` env vars, so if you completed §9 you already have the
+groundwork.
+
+### 10.2 Apply the schema
+
+```bash
+make bootstrap-vecna-db
+```
+
+The script applies [`vecna/schema.sql`](vecna/schema.sql) — the single
+`vecna_hive` table. Idempotent (`CREATE TABLE IF NOT EXISTS`).
+
+> 💡 **One-liner for both subsystems:** `make bootstrap-db` applies
+> `vines/schema.sql` _and_ `vecna/schema.sql` in sequence.
+
+### 10.3 Configure
+
+Beyond the shared `MARIADB_*` and `LINEAR_API_KEY`, VECNA reads:
+
+| Variable                 | Default                 | Purpose                                                       |
+| ------------------------ | ----------------------- | ------------------------------------------------------------- |
+| `VECNA_HOST`             | `127.0.0.1`             | Bind address for the Nexus.                                   |
+| `VECNA_PORT`             | `8765`                  | TCP port.                                                     |
+| `VECNA_AUTH_TOKEN`       | _(none)_                | If set, all requests require `Authorization: Bearer <token>`. |
+| `VECNA_DEDUP_WINDOW_MIN` | `5`                     | Dedup window for `importance ≥ 4` writes.                     |
+| `VECNA_URL`              | `http://127.0.0.1:8765` | Where clients / the `vecna` CLI find the Nexus.               |
+| `VECNA_TIMEOUT_MS`       | `10000`                 | Client-side timeout (Node client + CLI).                      |
+
+> ⚠️ **Security note.** The default loopback bind keeps the Hive
+> off-network. If you change `VECNA_HOST` to expose it (e.g. to other
+> hosts on a Tailscale tailnet), **set `VECNA_AUTH_TOKEN`** in the same
+> change. The Nexus refuses to start with an empty `VECNA_AUTH_TOKEN`,
+> precisely so silent mis-configurations fail loud.
+
+### 10.4 Run the Nexus
+
+Manual one-off (development):
+
+```bash
+make vecna-serve
+# or, with overrides:
+VECNA_PORT=18765 node dist/hive/cli.js serve
+```
+
+As a long-lived systemd user service:
+
+```bash
+mkdir -p ~/.config/systemd/user
+cp examples/vecna.service ~/.config/systemd/user/vecna.service
+# Edit ~/.config/systemd/user/vecna.service:
+#   - update the WorkingDirectory + ExecStart path if your clone lives elsewhere
+#   - point EnvironmentFile= at a 0600-perm file holding MARIADB_* / VECNA_AUTH_TOKEN
+systemctl --user daemon-reload
+systemctl --user enable --now vecna.service
+journalctl --user -u vecna.service -f
+```
+
+### 10.5 Smoke-test
+
+```bash
+npx vecna healthz                                       # expect: {"ok":true,"db":"up","version":"..."}
+npx vecna connect \
+  --topic "smoke-roundtrip" \
+  --content "operator end-to-end check" \
+  --source-agent "smoke-test" \
+  --importance 4
+npx vecna recall "smoke-roundtrip" --format context     # human-readable
+npx vecna search --query "operator"                     # full-text
+```
+
+### 10.6 Wire it into the orchestrator agent
+
+The orchestrator (your Nexus persona) calls `vecna recall` _before_
+dispatching a non-trivial sub-task and `vecna connect` _after_ it
+returns something durable. The integration sequence is documented in
+[`orchestrator/AGENTS.md`](orchestrator/AGENTS.md) §"Optional: shared
+knowledge via VECNA".
+
+The pattern, condensed:
+
+```bash
+# Pulse step 2.5 (between Anchoring and The Connection)
+CTX=$(vecna recall "<topic-the-agent-inferred>" --ticket "$PARENT" --format context)
+# Inject $CTX into the --message you send the Tendril.
+
+# Pulse step 6.5 (after Consolidation, before closing the parent ticket)
+vecna connect --topic "<topic>" \
+  --content "<one-sentence durable lesson>" \
+  --source-agent "<which Tendril learned this>" \
+  --importance 4 \
+  --linear-ref "$PARENT"
+
+# If a previously-stored fragment turned out wrong:
+vecna evolve <fragment-id> --content "<corrected truth>"
+```
+
+VECNA is **optional**: when `VECNA_URL` is unset or `vecna healthz`
+fails, agents should skip recall/connect/evolve calls and proceed
+without them. The supervisor pattern works without a Hive — VECNA only
+makes it learn over time.
+
 ## Troubleshooting
 
 ### "Specialist responds as if it has no scope"

@@ -112,6 +112,7 @@ cp "$REPO_DIR/agents/<id>/IDENTITY.md.template" \
 ```
 
 Then edit each file to fill in the operator's name, email, and host. Either:
+
 - Do it programmatically using the answers from question 5 above (preferred — use `sed` or write the file directly), or
 - Ask the operator to do it manually.
 
@@ -153,15 +154,18 @@ curl -s -X POST https://api.linear.app/graphql \
 ```
 
 Parse the response and populate `~/.openclaw/linear.json` with:
+
 - `workspace_url_key` from `organization.urlKey`
 - `team_id`, `team_key`, `team_name` from the operator's chosen team
 - The seven state UUIDs in `states.{backlog, todo, in_progress, in_review, done, canceled, duplicate}`
 
 For the API key:
+
 - **If 1Password:** create an item, then set `api_key_secret_ref` in `linear.json` to the `op://...` reference.
 - **If env var:** ensure `LINEAR_API_KEY` is set in the operator's shell init (`~/.bashrc` / `~/.zshrc`) or in the gateway's systemd unit `EnvironmentFile=`.
 
 Smoke-test Linear:
+
 ```bash
 linear-ticket list --limit 5
 ```
@@ -171,6 +175,7 @@ linear-ticket list --limit 5
 If the operator wants the protocol to survive crashes and use the `vines/spec.md` activation gate, install the VINES Node library. **Ask first** — it adds a MariaDB dependency.
 
 Prerequisites:
+
 - Node ≥ 20 (`node -v`).
 - MariaDB server reachable from this host. The operator can use a local server (`apt install mariadb-server`) or a cloud instance.
 
@@ -206,6 +211,53 @@ npx vines recover                          # → {"unfinishedTotal": 0, ...}
 
 If any of these fail, **stop and ask the operator** — never blindly retry. The full integration recipe is in `INSTALL.md §9`.
 
+### Step 5.6 — optional: install VECNA (Hive knowledge-sharing service)
+
+If the operator wants the swarm to **remember across orchestrations** (not just survive crashes), install VECNA. It reuses the MariaDB instance from Step 5.5; no new database needed.
+
+**Ask first.** VECNA adds a long-lived HTTP service the operator has to keep running. Useful but optional.
+
+If yes:
+
+```bash
+cd "$REPO_DIR"
+# Schema (uses the same MariaDB you bootstrapped for VINES)
+make bootstrap-vecna-db
+
+# Pick a port + (recommended) an auth token if VECNA_HOST != 127.0.0.1
+export VECNA_PORT=8765
+# export VECNA_AUTH_TOKEN=<random-32-byte-hex>     # only if exposing beyond loopback
+export VECNA_URL="http://127.0.0.1:${VECNA_PORT}"
+
+# Start the Nexus as a systemd user service
+mkdir -p ~/.config/systemd/user ~/.config/openclaw-hawkins
+cp "$REPO_DIR/examples/vecna.service" ~/.config/systemd/user/vecna.service
+cat > ~/.config/openclaw-hawkins/vecna.env <<EOF
+MARIADB_URL=${MARIADB_URL}
+MARIADB_USER=${MARIADB_USER}
+MARIADB_PASSWORD=${MARIADB_PASSWORD}
+MARIADB_SSL=${MARIADB_SSL:-preferred}
+VECNA_PORT=${VECNA_PORT}
+VECNA_URL=${VECNA_URL}
+EOF
+chmod 600 ~/.config/openclaw-hawkins/vecna.env
+
+# Edit ~/.config/systemd/user/vecna.service so WorkingDirectory + ExecStart
+# point at the operator's actual clone (default assumes $HOME/openclaw-hawkins).
+
+systemctl --user daemon-reload
+systemctl --user enable --now vecna.service
+sleep 2
+```
+
+Smoke-test:
+
+```bash
+npx vecna healthz     # → {"ok":true,"db":"up","version":"..."}
+```
+
+If healthz fails, **stop**. Check `journalctl --user -u vecna.service` and ask the operator before retrying. Full recipe: `INSTALL.md §10`.
+
 ### Step 6 — restart the gateway
 
 ```bash
@@ -229,6 +281,7 @@ done
 ```
 
 Each should:
+
 - Identify itself by its name (system-agent, code-agent, etc.)
 - State its role
 - Cite one rule from its AGENTS.md
@@ -263,14 +316,14 @@ When done, give the operator:
 
 ## Failure modes
 
-| Failure | Cause | Fix |
-|---|---|---|
-| `openclaw agent --agent <id>` not recognized | OpenClaw < 2026.5.7 | Tell operator to upgrade |
-| Specialist returns generic identity | BOOTSTRAP.md still present in workspace | `rm ~/.openclaw/agents/<id>/workspace/BOOTSTRAP.md` |
-| Specialist times out | Default --timeout too low for model latency | Re-run with longer --timeout |
-| Linear `op read` fails | 1Password service-account token not loaded | Operator must source the token file in shell env or systemd unit |
-| Gateway won't restart | Existing openclaw.json invalid after operator manual edits | `openclaw config validate` to find the issue |
-| Vision-agent can't process images | Assigned model is text-only | Swap to `ollama/kimi-k2.5:cloud` or another vision-capable model |
+| Failure                                      | Cause                                                      | Fix                                                              |
+| -------------------------------------------- | ---------------------------------------------------------- | ---------------------------------------------------------------- |
+| `openclaw agent --agent <id>` not recognized | OpenClaw < 2026.5.7                                        | Tell operator to upgrade                                         |
+| Specialist returns generic identity          | BOOTSTRAP.md still present in workspace                    | `rm ~/.openclaw/agents/<id>/workspace/BOOTSTRAP.md`              |
+| Specialist times out                         | Default --timeout too low for model latency                | Re-run with longer --timeout                                     |
+| Linear `op read` fails                       | 1Password service-account token not loaded                 | Operator must source the token file in shell env or systemd unit |
+| Gateway won't restart                        | Existing openclaw.json invalid after operator manual edits | `openclaw config validate` to find the issue                     |
+| Vision-agent can't process images            | Assigned model is text-only                                | Swap to `ollama/kimi-k2.5:cloud` or another vision-capable model |
 
 ## Do NOT do
 
@@ -283,6 +336,7 @@ When done, give the operator:
 ## After installation
 
 Point the operator at:
+
 - `~/.openclaw/workspace/AGENTS.md` — full architecture and dispatch protocol
 - `~/.openclaw/workspace/LINEAR.md` (if installed) — ticket lifecycle
 - `https://github.com/parijatmukherjee/openclaw-hawkins/blob/main/INSTALL.md` — deeper customization

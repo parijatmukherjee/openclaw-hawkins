@@ -8,6 +8,36 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Added
 
+- **Operator-facing VECNA documentation:**
+  - `INSTALL.md §10` — full VECNA install walkthrough (schema, env vars,
+    systemd unit, smoke commands).
+  - `orchestrator/TOOLS.md.template` — Hive subcommands (`vecna healthz /
+    recall / connect / evolve / search / fragment`) registered in the
+    tool table the operator copies into their Nexus's workspace.
+  - `SKILL.md` Step 5.6 — AI-installer flow now offers the optional
+    VECNA install after VINES, including a systemd unit + env file.
+  - `agents/*/AGENTS.md` — one-paragraph "Tendril of the Hive" footer on
+    each specialist persona telling them when to recall / connect /
+    evolve.
+- `examples/vecna.service` — systemd user unit for running the Nexus as
+  a long-lived process, with a hardened ProtectSystem/NoNewPrivileges
+  stanza.
+- `banner.svg` — Pulse Red / Void Black / Vascular Maroon banner per
+  `docs/branding.md`. Replaces the old `banner.png`.
+
+### Verified end-to-end
+
+- Real-service smoke run against the cloud MariaDB ledger (8 / 8 tests
+  passing where env vars supplied): VINES `Ledger` CRUD roundtrip, VECNA
+  `HiveStore` connect → recall → evolve, `linear-ticket list` against
+  the live Linear API.
+- Manual `vecna serve` + `curl` against `/v1/healthz`, `/v1/connect`,
+  `/v1/recall/:topic` — all returned the expected JSON; the
+  `[nexus] The Hive remembers` narrative log fired; graceful SIGTERM
+  shutdown drained the pool cleanly.
+
+### Added
+
 - **VECNA (Versatile Entity for Contextual Network Awareness)** — Hive
   knowledge-sharing subsystem. Sidecar Express REST service backed by the
   same MariaDB instance VINES uses:

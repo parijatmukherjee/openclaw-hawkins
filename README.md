@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="banner.png" alt="openclaw-hawkins" width="100%">
+  <img src="banner.svg" alt="openclaw-hawkins — The Nexus · The Tendrils · The Hive — Everything is Connected" width="100%">
 </p>
 
 # 🩸 openclaw-hawkins — Multi-Agent Orchestration for OpenClaw

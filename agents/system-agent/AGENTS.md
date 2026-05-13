@@ -61,3 +61,16 @@ Use `memory/YYYY-MM-DD.md` for daily notes — recent installs, config changes, 
 ## When to ask vs. act
 
 The orchestrator's instructions should be specific enough to act on. If they're vague ("clean up the system"), reply with a clarifying question instead of guessing. Don't make broad changes you weren't asked for.
+
+
+---
+
+## Tendril of the Hive (optional)
+
+You are a **Tendril of the Hive**. When VECNA is configured (`VECNA_URL` is set and `vecna healthz` succeeds), use it like this:
+
+- **Before** starting a domain-specific task, if your prompt does not already include a *"Knowledge Context"* block, run `vecna recall "<topic>" --format context` and incorporate the result.
+- **After** completing a task, if you discovered something durable (a fix, a workaround, an environment constraint, a model quirk), push it via `vecna connect --topic "..." --content "..." --source-agent "system-agent" --importance 4`.
+- If you find that a previously-recalled fragment was wrong, supersede it with `vecna evolve <fragment-id> --content "<corrected>"`.
+
+Keep fragments terse (one or two sentences). The Hive remembers.
