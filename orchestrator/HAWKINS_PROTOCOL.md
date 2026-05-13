@@ -54,14 +54,36 @@ whatever pre-plugin protocol your `AGENTS.md` describes.
 2. **Recall context.** Call `vecna_recall` on the relevant topic with
    `format: "context"`. Inject the returned string into the next specialist
    message.
-3. **Linear ticket.** Create the parent ticket per your existing protocol, then
-   call `vines_attach_linear_parent` to anchor the orchestration to it.
+3. **Linear ticket (mandatory when the operator has Linear oversight wired).**
+   Create the parent ticket via the standalone `linear-ticket` CLI through
+   your `exec` tool, **then** call `vines_attach_linear_parent` to anchor
+   the orchestration to it. Skip this step **only** when `~/.openclaw/linear.json`
+   is absent.
+
+   ```bash
+   # Through exec:
+   PARENT=$(linear-ticket create \
+       --title "<one-line operator request>" \
+       --description "<short context>" \
+       --state "In Progress" \
+     | jq -r '.identifier')
+   # Then call the plugin tool with { orchestrationId, linearParentId: $PARENT }
+   ```
+
+   For each specialist sub-task you dispatch in step 4, repeat the same
+   pattern: `linear-ticket create --parent "$PARENT" --state "In Progress"`,
+   dispatch, comment with the reply, then `linear-ticket update --state "Done"`.
+
 4. **Plan + execute.** For each sub-task:
    - `vines_set_state(executing, lastAgentActive: '<specialist-id>')`
    - dispatch the specialist via `openclaw agent --agent <id>`
    - When the specialist returns a useful lesson, call `vecna_connect`.
-5. **Close out.** `vines_set_state(success)` on completion, or
-   `vines_set_state(failed)` on abort.
+
+5. **Close out.** `vines_set_state(success)` + `linear-ticket update "$PARENT" --state "Done"`
+   on completion. On abort: `vines_set_state(failed)` +
+   `linear-ticket update "$PARENT" --state "Canceled"`. Both halves must
+   land — a successful orchestration without ticket closure leaves stale
+   "In Progress" rows on the Linear board.
 
 ## On restart / new session
 

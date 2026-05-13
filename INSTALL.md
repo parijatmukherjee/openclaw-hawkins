@@ -17,7 +17,7 @@ Detailed setup for `openclaw-hawkins`. The fast path is `./scripts/setup.sh` the
 Pin to a specific release tag rather than the moving `main` branch:
 
 ```bash
-git clone --branch v1.0.8 --depth 1 https://github.com/parijatmukherjee/openclaw-hawkins.git ~/openclaw-hawkins
+git clone --branch v1.0.9 --depth 1 https://github.com/parijatmukherjee/openclaw-hawkins.git ~/openclaw-hawkins
 cd ~/openclaw-hawkins
 ```
 
@@ -257,7 +257,7 @@ statement. The library supports `MARIADB_SSL=insecure` for self-signed certs.)
 ### 9.2 Install the library
 
 ```bash
-git clone --branch v1.0.8 --depth 1 https://github.com/parijatmukherjee/openclaw-hawkins.git
+git clone --branch v1.0.9 --depth 1 https://github.com/parijatmukherjee/openclaw-hawkins.git
 cd openclaw-hawkins
 make install        # npm ci / npm install
 make build          # compile TypeScript into dist/

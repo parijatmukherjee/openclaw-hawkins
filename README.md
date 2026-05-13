@@ -93,7 +93,7 @@ openclaw config set plugins.entries.openclaw-hawkins.config.mariadb.ssl  "insecu
 
 ```bash
 mkdir -p ~/.openclaw/workspace/skills/openclaw-hawkins-installer
-curl -fsSL https://raw.githubusercontent.com/parijatmukherjee/openclaw-hawkins/v1.0.8/SKILL.md \
+curl -fsSL https://raw.githubusercontent.com/parijatmukherjee/openclaw-hawkins/v1.0.9/SKILL.md \
   > ~/.openclaw/workspace/skills/openclaw-hawkins-installer/SKILL.md
 ```
 
@@ -109,7 +109,7 @@ curl -fsSL https://raw.githubusercontent.com/parijatmukherjee/openclaw-hawkins/v
 
 ```bash
 # 1️⃣ Clone — pin to the latest release tag so the source tree is immutable
-git clone --branch v1.0.8 --depth 1 https://github.com/parijatmukherjee/openclaw-hawkins.git ~/openclaw-hawkins
+git clone --branch v1.0.9 --depth 1 https://github.com/parijatmukherjee/openclaw-hawkins.git ~/openclaw-hawkins
 cd ~/openclaw-hawkins
 
 # 2️⃣ Create the 6 specialist agents
