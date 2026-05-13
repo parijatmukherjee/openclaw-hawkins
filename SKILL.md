@@ -127,7 +127,8 @@ Soft checks (warn in the final report; don't halt):
 
 ```bash
 command -v jq >/dev/null        # nice to have for jq -r '.result.payloads[0].text' shortcuts
-command -v op >/dev/null        # only needed if storing Linear key in 1Password
+command -v op >/dev/null        # recommended: enables 1Password-first credential resolution in Step 5.4
+op whoami >/dev/null 2>&1       # if op is present, also confirm it's signed in
 ```
 
 If any hard check fails, write a one-line explanation, emit the final report with `status: halted`, and stop.
@@ -178,6 +179,81 @@ This is for the audit trail — don't wait for an ack. Proceed to Phase D immedi
 ## Phase D — Install steps
 
 Each step follows **DETECT → ACT → VERIFY**. If VERIFY fails, the recovery path is documented inline. If recovery doesn't restore the step, halt and report.
+
+### Step 0 — Choose install mechanism (plugin-first, source-clone fallback)
+
+There are two equivalent install paths. **Always try the plugin path first** —
+it provisions the entire surface (schemas + agents + workspace overlay) in two
+commands. Fall back to the source-clone path (Steps 1–8 below) only when the
+plugin path fails (e.g. you're working from an unpublished branch, or you're
+offline).
+
+**DETECT (plugin path available?)**
+
+```bash
+openclaw --version | grep -qE '2026\.(5|[6-9])' && openclaw_ok=true || openclaw_ok=false
+openclaw plugins search openclaw-hawkins 2>/dev/null | grep -q openclaw-hawkins \
+  && plugin_published=true || plugin_published=false
+```
+
+**ACT (plugin path)**
+
+If `openclaw_ok=true` and `plugin_published=true`:
+
+```bash
+# 1. Install. Falls back to npm if ClawHub is unreachable.
+openclaw plugins install clawhub:openclaw-hawkins \
+  || openclaw plugins install npm:openclaw-hawkins
+
+# 2. Resolve creds per Step 5.4 below (1Password preferred, env fallback).
+#    THIS MUST RUN BEFORE THE NEXT COMMAND — `openclaw hawkins setup` needs
+#    the MariaDB env vars at invocation time.
+
+# 3. Configure non-secrets via `openclaw config`. NEVER set the password here.
+openclaw config set plugins.entries.openclaw-hawkins.config.mariadb.url \
+  "$MARIADB_URL"
+openclaw config set plugins.entries.openclaw-hawkins.config.mariadb.user \
+  "$MARIADB_USER"
+openclaw config set plugins.entries.openclaw-hawkins.config.mariadb.ssl \
+  "${MARIADB_SSL:-insecure}"
+
+# 4. Install MARIADB_PASSWORD into the gateway's environment via a 0600
+#    EnvironmentFile (the secret never sits in openclaw.json).
+mkdir -p "$HOME/.openclaw/secrets" && chmod 700 "$HOME/.openclaw/secrets"
+( umask 077 && printf 'MARIADB_PASSWORD=%s\n' "$MARIADB_PASSWORD" > "$HOME/.openclaw/secrets/hawkins.env" )
+mkdir -p "$HOME/.config/systemd/user/openclaw-gateway.service.d"
+cat > "$HOME/.config/systemd/user/openclaw-gateway.service.d/hawkins.conf" <<'EOF'
+[Service]
+EnvironmentFile=%h/.openclaw/secrets/hawkins.env
+EOF
+systemctl --user daemon-reload
+openclaw gateway restart
+
+# 5. One-shot provisioning: schemas + 6 agents + AGENTS.md overlay.
+openclaw hawkins setup
+```
+
+**VERIFY (plugin path)**
+
+```bash
+openclaw plugins inspect openclaw-hawkins --runtime --json \
+  | jq -e '.plugin.status=="loaded" and (.plugin.toolNames|length==12)' \
+  && echo "plugin ok" || echo "plugin NOT ok"
+
+openclaw agent --agent system-agent --json --timeout 90 \
+  --message "Call vecna_healthz and return only the JSON." \
+  | jq -e '.result.payloads[0].text | fromjson | .ok==true and .db=="up"' \
+  && echo "vecna_healthz ok" || echo "vecna_healthz NOT ok"
+```
+
+If both verifications pass, **skip Steps 1, 5.5, 5.6, and 6** (the plugin
+already did them). Continue from **Step 3** (Tendril identities) onward; the
+plugin's `hawkins setup` will have printed an exhaustive next-steps banner —
+follow it.
+
+**Fall back to Steps 1–8 below** if either DETECT fails.
+
+---
 
 ### Step 1 — clone or update the repo
 
@@ -440,6 +516,60 @@ Recovery: if `list` fails with `op read failed`, the operator's 1Password isn't 
 
 ---
 
+### Step 5.4 — Resolve MariaDB credentials (1Password-first)
+
+VINES + VECNA both need `MARIADB_URL`, `MARIADB_USER`, `MARIADB_PASSWORD`. The
+installer must resolve them **before** Step 5.5 so the rest of the flow can
+treat them as preconditions. Resolution order:
+
+1. **If `op` (1Password CLI) is installed AND signed in, prefer 1Password.**
+   Detect with:
+
+   ```bash
+   command -v op >/dev/null && op whoami >/dev/null 2>&1 && have_op=true || have_op=false
+   ```
+
+   When `have_op=true`, **ask the operator** which 1Password vault + item
+   holds the MariaDB credentials. One consolidated question, three short
+   fields (vault, item, optional database name). If the runtime can't ask,
+   list candidate items whose title contains "MariaDB" or "dobby" via
+   `op item list --vault <vault> | grep -iE 'mariadb|dobby'` and propose the
+   most recent as a default the operator can confirm in one keystroke.
+
+   Then fetch and export, **without ever echoing the values**:
+
+   ```bash
+   OP_VAULT="<vault id or name the operator picked>"
+   OP_ITEM="<item id or name>"
+   OP_DB="${OP_DB:-dobby}"   # most items store db name in the title, not a field
+   export MARIADB_URL="mariadb://$(op item get "$OP_ITEM" --vault "$OP_VAULT" --fields label=server --reveal):$(op item get "$OP_ITEM" --vault "$OP_VAULT" --fields label=port --reveal)/$OP_DB"
+   export MARIADB_USER="$(op item get "$OP_ITEM" --vault "$OP_VAULT" --fields label=username --reveal)"
+   export MARIADB_PASSWORD="$(op item get "$OP_ITEM" --vault "$OP_VAULT" --fields label=password --reveal)"
+   export MARIADB_SSL="${MARIADB_SSL:-insecure}"   # cloud DBs with self-signed certs
+   ```
+
+   If the item's `database` field is empty, fall back to the operator-provided
+   `OP_DB` (most 1Password "Database" entries leave the field blank because
+   the database name lives in the item title).
+
+2. **Else, fall back to env vars** the operator already exported (`MARIADB_URL`,
+   `MARIADB_USER`, `MARIADB_PASSWORD`). Detect:
+
+   ```bash
+   test -n "${MARIADB_URL:-}" && test -n "${MARIADB_USER:-}" && test -n "${MARIADB_PASSWORD:-}" \
+     && have_db_env=true || have_db_env=false
+   ```
+
+3. **Else, skip 5.5 and 5.6.** Note in the report which path was used:
+   `creds_source=1password|env|none`. **Never** prompt the operator to paste
+   a password in plaintext.
+
+The same pattern applies for `LINEAR_API_KEY` — prefer 1Password (look for an
+item whose title contains "Linear API"), fall back to the env var. Linear is
+optional; never block on it.
+
+---
+
 ### Step 5.5 — VINES (durable orchestration state, optional)
 
 **DETECT**
@@ -450,7 +580,10 @@ test -n "${MARIADB_URL:-}" && test -n "${MARIADB_USER:-}" && test -n "${MARIADB_
   && have_db_env=true || have_db_env=false
 ```
 
-If `have_db_env=false`, **skip** Step 5.5 and Step 5.6. Note in the report that VINES + VECNA were skipped due to missing env.
+If `have_db_env=false`, **skip** Step 5.5 and Step 5.6. (Step 5.4 should have
+already populated the env from 1Password if `op` was available — a false here
+means both 1Password and env paths were unusable.) Note in the report that
+VINES + VECNA were skipped due to missing creds.
 
 **ACT**
 

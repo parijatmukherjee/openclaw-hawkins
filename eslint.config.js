@@ -51,6 +51,15 @@ export default [
       "@typescript-eslint/no-unsafe-call": "off",
       "@typescript-eslint/no-unsafe-argument": "off",
       "@typescript-eslint/no-unsafe-return": "off",
+      // `expect(spy.method).toHaveBeenCalled()` is the standard vitest pattern
+      // even when `method` is unbound from its prototype; safe inside tests.
+      "@typescript-eslint/unbound-method": "off",
+      // `vi.fn(async () => ...)` factories may not contain an await.
+      "@typescript-eslint/require-await": "off",
+      // Mock helpers occasionally need `as never` / `as { ... }` casts
+      // that the type checker sees as redundant but are load-bearing for the
+      // dual-shape spies.
+      "@typescript-eslint/no-unnecessary-type-assertion": "off",
     },
   },
 ];

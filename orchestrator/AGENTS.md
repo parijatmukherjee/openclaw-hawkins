@@ -175,9 +175,61 @@ If no specialist fits the task:
 
 If you've configured Linear integration ([see LINEAR.md](LINEAR.md)), wrap each non-trivial dispatch in a ticket lifecycle: parent ticket per operator request, sub-ticket per specialist dispatch, comment with the reply, state Done when complete. Skip tickets for trivial inline-handled requests (≤30s) so the board doesn't fill with noise.
 
-## Optional: durable state via the VINES library
+## Detecting which install path is active
 
-If the operator installed [VINES](../vines/spec.md) (the Node/TypeScript library bundled in this repo), drive it through the `vines` CLI from your `exec` tool. You don't need to write or import any Node code — the CLI is the integration surface.
+Before deciding which command to invoke, **detect whether `openclaw-hawkins` is installed as an OpenClaw plugin**:
+
+```bash
+openclaw plugins list 2>/dev/null | grep -q openclaw-hawkins && plugin_mode=true || plugin_mode=false
+```
+
+- **`plugin_mode=true`** — the plugin is loaded. You have 12 first-class
+  OpenClaw tools available (`vines_*`, `vecna_*`). Call them through the agent
+  runtime — see §"Plugin-mode invocation" below. **Do NOT shell out to the
+  standalone `vines` / `vecna` CLIs in this mode** (they may not be on PATH).
+- **`plugin_mode=false`** — the standalone CLI is the only surface. Use the
+  legacy bash recipes below (`vines triage`, `vecna recall`, …).
+
+Both modes share the same semantics — only the invocation differs.
+
+## Plugin-mode invocation (recommended once installed)
+
+When `plugin_mode=true`, you are running on a host where the 12 tools are
+registered with OpenClaw. The Nexus calls them by name through normal tool
+dispatch (no `exec` needed):
+
+| Capability                | Plugin tool                | Inputs (TypeBox-validated)                                                         |
+| ------------------------- | -------------------------- | ---------------------------------------------------------------------------------- |
+| Triage (open ledger row)  | `vines_triage`             | `{ objectiveSummary, linearParentId?, orchestrationId? }`                          |
+| Start executing           | `vines_start`              | `{ orchestrationId, lastAgentActive? }`                                            |
+| Set arbitrary state       | `vines_set_state`          | `{ orchestrationId, state, lastAgentActive? }`                                     |
+| Attach Linear parent      | `vines_attach_linear_parent` | `{ orchestrationId, linearParentId }`                                            |
+| Recover after a crash     | `vines_recover`            | `{ markOrphanedAsFailed?, doneStateNames? }` → `{ summary, items }`                |
+| Inspect a single row      | `vines_status`             | `{ orchestrationId }` → `{ row }`                                                  |
+| Write a memory fragment   | `vecna_connect`            | `{ topic, content, sourceAgent, importance?, linearRef?, subTopic? }`              |
+| Topic-scoped recall       | `vecna_recall`             | `{ topic, ticket?, limit?, format? }` (use `format: "context"` for prompt inject)  |
+| Correct a stale fragment  | `vecna_evolve`             | `{ fragmentId, content, importance?, reason? }`                                    |
+| Full-text search          | `vecna_search`             | `{ query, limit? }`                                                                |
+| Get one fragment by id    | `vecna_fragment`           | `{ fragmentId }`                                                                   |
+| Liveness probe            | `vecna_healthz`            | `{}` → `{ ok, db }`                                                                |
+
+All tool descriptions and parameter schemas are also visible via:
+
+```bash
+openclaw plugins inspect openclaw-hawkins --runtime --json | jq '.plugin.toolNames'
+```
+
+The protocol is identical to the standalone-CLI flow below — just substitute
+tool calls for shell invocations. For example, the triage step becomes _"call
+`vines_triage` with `{ objectiveSummary: '…', linearParentId: 'ENG-42' }`"_
+instead of `vines triage …`. The plugin's `register` block has already wired
+every tool to the same `Ledger` / `HiveStore` your standalone CLI talks to.
+
+---
+
+## Optional: durable state via the VINES library (standalone-CLI mode)
+
+If `plugin_mode=false` and the operator installed [VINES](../vines/spec.md) (the Node/TypeScript library bundled in this repo), drive it through the `vines` CLI from your `exec` tool. You don't need to write or import any Node code — the CLI is the integration surface.
 
 The five commands you'll use, mapped to the spec §3.2 protocol:
 
