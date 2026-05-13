@@ -1,0 +1,112 @@
+name: Release
+
+# Push a tag like `v1.0.0` on `main` and this workflow publishes the same
+# build artifact to both npm and ClawHub. The tag is the source of truth —
+# the package.json version must match (the workflow refuses to publish if
+# they drift). See RELEASING.md for the operator recipe.
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+-*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to release (e.g. v1.0.0). Must already exist on main."
+        required: true
+
+permissions:
+  contents: read
+  # `id-token: write` is required for npm provenance (OIDC trust).
+  id-token: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: build + publish (npm + ClawHub)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the tagged commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          fetch-depth: 0
+
+      - name: Resolve tag + version
+        id: resolve
+        run: |
+          set -euo pipefail
+          if [ -n "${{ inputs.tag }}" ]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG="${GITHUB_REF#refs/tags/}"
+          fi
+          VERSION="${TAG#v}"
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          if [ "$VERSION" != "$PKG_VERSION" ]; then
+            echo "::error::tag ($VERSION) does not match package.json version ($PKG_VERSION)."
+            echo "         bump package.json + commit + retag, then re-run."
+            exit 1
+          fi
+          echo "tag=$TAG"           >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION"   >> "$GITHUB_OUTPUT"
+          echo "  tag        : $TAG"
+          echo "  version    : $VERSION"
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install dependencies (frozen lockfile)
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build
+
+      - name: Run tests with coverage (gate against regression)
+        run: npm run coverage
+
+      - name: Pack the tarball (preview what npm will see)
+        run: |
+          npm pack --dry-run
+          npm pack
+          ls -lh openclaw-hawkins-*.tgz
+
+      - name: Publish to npm (with provenance)
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --provenance --access public
+
+      - name: Install the clawhub CLI
+        run: npm i -g clawhub
+
+      - name: Publish to ClawHub
+        env:
+          CLAWHUB_TOKEN: ${{ secrets.CLAWHUB_TOKEN }}
+        run: |
+          clawhub package publish . \
+            --family code-plugin \
+            --name openclaw-hawkins \
+            --version "${{ steps.resolve.outputs.version }}" \
+            --tags latest \
+            --source-repo "${{ github.repository }}" \
+            --source-commit "${{ github.sha }}" \
+            --source-ref "${{ steps.resolve.outputs.tag }}" \
+            --json
+
+      - name: Upload tarball as workflow artifact (for audit)
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-tarball-${{ steps.resolve.outputs.tag }}
+          path: openclaw-hawkins-*.tgz
+          if-no-files-found: error
