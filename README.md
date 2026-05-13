@@ -2,7 +2,7 @@
   <img src="banner.png" alt="openclaw-hawkins — The Nexus · The Tendrils · The Hive — Everything is Connected" width="100%">
 </p>
 
-# 🩸 openclaw-hawkins — Multi-Agent Orchestration for OpenClaw
+# 🩸 Openclaw Hawkins — Multi-Agent Orchestration for OpenClaw
 
 [![CI](https://github.com/parijatmukherjee/openclaw-hawkins/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/parijatmukherjee/openclaw-hawkins/actions/workflows/ci.yml)
 [![Coverage](https://codecov.io/gh/parijatmukherjee/openclaw-hawkins/branch/main/graph/badge.svg)](https://codecov.io/gh/parijatmukherjee/openclaw-hawkins)
