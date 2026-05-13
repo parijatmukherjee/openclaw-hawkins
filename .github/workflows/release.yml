@@ -35,15 +35,17 @@ jobs:
           ref: ${{ inputs.tag || github.ref }}
           fetch-depth: 0
 
-      - name: Set up Node 22
+      - name: Set up Node 24 (ships with npm >= 11.5.1 — Trusted Publishing requirement)
         uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "24"
           cache: npm
           registry-url: "https://registry.npmjs.org"
 
-      - name: Upgrade npm (Trusted Publishing requires >=11.5.1)
-        run: npm install -g npm@latest
+      - name: Print resolved node + npm versions (sanity)
+        run: |
+          node --version
+          npm --version
 
       - name: Verify tag matches package.json version
         run: |
