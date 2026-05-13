@@ -129,8 +129,8 @@ export async function runSetup(opts: SetupOptions): Promise<{
 /**
  * Prints a "what you got" summary + verification steps + next-step recipe.
  * The text is deliberately exhaustive so a human operator OR an AI installer
- * (e.g. Dobby reading this stdout) can act on it without prior knowledge of
- * the plugin's surface.
+ * agent reading this stdout can act on it without prior knowledge of the
+ * plugin's surface.
  */
 export function printPostInstallBanner(
   log: (line: string) => void,

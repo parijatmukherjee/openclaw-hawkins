@@ -29,8 +29,8 @@ synthesises results.
 - **Codebase term:** orchestrator (the existing `orchestrator/` directory
   and `agent:main` slot).
 - **Brand term:** _the Nexus_.
-- **User-facing persona name:** whatever the operator chooses (Dobby,
-  Maestro, Conductor, …).
+- **User-facing persona name:** whatever the operator chooses (Maestro,
+  Conductor, Vega, …).
 
 ### 2.2 The Tendrils — the specialist agents
 

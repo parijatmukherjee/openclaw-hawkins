@@ -532,16 +532,16 @@ treat them as preconditions. Resolution order:
    When `have_op=true`, **ask the operator** which 1Password vault + item
    holds the MariaDB credentials. One consolidated question, three short
    fields (vault, item, optional database name). If the runtime can't ask,
-   list candidate items whose title contains "MariaDB" or "dobby" via
-   `op item list --vault <vault> | grep -iE 'mariadb|dobby'` and propose the
-   most recent as a default the operator can confirm in one keystroke.
+   list candidate items whose title contains "MariaDB" via
+   `op item list --vault <vault> | grep -i mariadb` and propose the most
+   recent as a default the operator can confirm in one keystroke.
 
    Then fetch and export, **without ever echoing the values**:
 
    ```bash
    OP_VAULT="<vault id or name the operator picked>"
    OP_ITEM="<item id or name>"
-   OP_DB="${OP_DB:-dobby}"   # most items store db name in the title, not a field
+   OP_DB="${OP_DB:-hawkins}"   # most items store db name in the title, not a field
    export MARIADB_URL="mariadb://$(op item get "$OP_ITEM" --vault "$OP_VAULT" --fields label=server --reveal):$(op item get "$OP_ITEM" --vault "$OP_VAULT" --fields label=port --reveal)/$OP_DB"
    export MARIADB_USER="$(op item get "$OP_ITEM" --vault "$OP_VAULT" --fields label=username --reveal)"
    export MARIADB_PASSWORD="$(op item get "$OP_ITEM" --vault "$OP_VAULT" --fields label=password --reveal)"

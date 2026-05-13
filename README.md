@@ -70,12 +70,12 @@ openclaw plugins install clawhub:openclaw-hawkins \
 openclaw hawkins setup
 ```
 
-✨ The plugin registers **12 typed tools** (`vines_*` × 6, `vecna_*` × 6) with the OpenClaw runtime — any agent in your gateway can call them by name. The `hawkins setup` command also prints an exhaustive **post-install banner** listing every tool, verification commands, and the remaining personalisation steps, so a human operator _or_ an AI installer (like Dobby) can finish the install without consulting any other doc.
+✨ The plugin registers **12 typed tools** (`vines_*` × 6, `vecna_*` × 6) with the OpenClaw runtime — any agent in your gateway can call them by name. The `hawkins setup` command also prints an exhaustive **post-install banner** listing every tool, verification commands, and the remaining personalisation steps, so a human operator _or_ an AI installer agent can finish the install without consulting any other doc.
 
 Configure the plugin via `openclaw config`:
 
 ```bash
-openclaw config set plugins.entries.openclaw-hawkins.config.mariadb.url  "mariadb://host:3306/dobby"
+openclaw config set plugins.entries.openclaw-hawkins.config.mariadb.url  "mariadb://your-host:3306/hawkins"
 openclaw config set plugins.entries.openclaw-hawkins.config.mariadb.user "hawkins"
 openclaw config set plugins.entries.openclaw-hawkins.config.mariadb.ssl  "insecure"     # for self-signed cloud certs
 # Password MUST come from the gateway env — the plugin schema refuses to store it in openclaw.json.
