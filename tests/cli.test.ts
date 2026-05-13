@@ -45,6 +45,9 @@ afterEach(() => {
   delete process.env.MARIADB_PASSWORD;
   delete process.env.LINEAR_API_KEY;
   vi.restoreAllMocks();
+  // `restoreAllMocks` does NOT undo `vi.stubGlobal` — call this explicitly
+  // so a fake `fetch` from the recover test doesn't bleed into later suites.
+  vi.unstubAllGlobals();
 });
 
 const importMain = async () => (await import("../src/cli.js")).main;

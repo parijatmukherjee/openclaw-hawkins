@@ -10,7 +10,7 @@
  * dispatch — useful for end-to-end verification on a configured host.
  */
 import { describe, expect, it } from "vitest";
-import { execFile } from "node:child_process";
+import { execFile, spawnSync } from "node:child_process";
 import { promisify } from "node:util";
 
 import { dispatchSpecialist } from "../../src/dispatcher.js";
@@ -18,24 +18,24 @@ import type { SpecialistId } from "../../src/types.js";
 
 const execFileAsync = promisify(execFile);
 
-async function openclawOnPath(): Promise<boolean> {
-  try {
-    await execFileAsync("openclaw", ["--version"], { timeout: 5_000 });
-    return true;
-  } catch {
-    return false;
-  }
+// Synchronous detection so `describe` itself stays sync — vitest only
+// registers tests deterministically from a sync `describe` callback.
+function openclawOnPath(): boolean {
+  const result = spawnSync("openclaw", ["--version"], { timeout: 5_000, stdio: "ignore" });
+  return result.status === 0;
 }
 
-describe("dispatcher smoke", async () => {
-  const hasOpenclaw = await openclawOnPath();
+const hasOpenclaw = openclawOnPath();
+const wantsRealDispatch = Boolean(
+  process.env.SMOKE_OPENCLAW_AGENT && process.env.SMOKE_OPENCLAW_MESSAGE,
+);
 
+describe("dispatcher smoke", () => {
   it.skipIf(!hasOpenclaw)("`openclaw` is on PATH and reports a version", async () => {
     const { stdout } = await execFileAsync("openclaw", ["--version"], { timeout: 5_000 });
     expect(stdout.trim().length).toBeGreaterThan(0);
   });
 
-  const wantsRealDispatch = process.env.SMOKE_OPENCLAW_AGENT && process.env.SMOKE_OPENCLAW_MESSAGE;
   it.skipIf(!hasOpenclaw || !wantsRealDispatch)(
     "real specialist dispatch returns a result",
     async () => {

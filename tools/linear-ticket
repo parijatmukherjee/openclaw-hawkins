@@ -148,17 +148,37 @@ async function resolveIssueId(apiKey, ref) {
 // Subcommands
 // ---------------------------------------------------------------------------
 
+function requireString(args, key, where) {
+  const v = args[key];
+  if (typeof v !== "string" || v.length === 0) {
+    die(`--${key} is required for \`${where}\` and must be a non-empty string`);
+  }
+  return v;
+}
+
+function optionalString(args, key) {
+  const v = args[key];
+  if (v === undefined) return undefined;
+  if (typeof v !== "string" || v.length === 0) {
+    die(`--${key}, if provided, must be a non-empty string`);
+  }
+  return v;
+}
+
 async function cmdCreate(args) {
   const { apiKey, cfg } = await loadConfig();
-  if (!args.title) die("--title is required for `create`");
-  const stateId = args.state ? resolveStateId(cfg, args.state) : cfg.states.todo;
+  const title = requireString(args, "title", "create");
+  const description = optionalString(args, "description");
+  const stateName = optionalString(args, "state");
+  const parent = optionalString(args, "parent");
+  const stateId = stateName ? resolveStateId(cfg, stateName) : cfg.states.todo;
   const input = {
     teamId: cfg.team_id,
-    title: args.title,
-    description: args.description ?? "",
+    title,
+    description: description ?? "",
     stateId,
   };
-  if (args.parent) input.parentId = await resolveIssueId(apiKey, args.parent);
+  if (parent) input.parentId = await resolveIssueId(apiKey, parent);
   const data = await gql(
     apiKey,
     `mutation($input: IssueCreateInput!) {
@@ -174,12 +194,15 @@ async function cmdCreate(args) {
 
 async function cmdUpdate(args) {
   const { apiKey, cfg } = await loadConfig();
-  if (!args.ref) die("update requires an issue id or key");
+  if (typeof args.ref !== "string" || !args.ref) die("update requires an issue id or key");
+  const stateName = optionalString(args, "state");
+  const title = optionalString(args, "title");
+  const description = optionalString(args, "description");
   const issueId = await resolveIssueId(apiKey, args.ref);
   const input = {};
-  if (args.state) input.stateId = resolveStateId(cfg, args.state);
-  if (args.title) input.title = args.title;
-  if (args.description !== undefined) input.description = args.description;
+  if (stateName) input.stateId = resolveStateId(cfg, stateName);
+  if (title) input.title = title;
+  if (description !== undefined) input.description = description;
   if (Object.keys(input).length === 0) die("nothing to update");
   const data = await gql(
     apiKey,
@@ -196,8 +219,8 @@ async function cmdUpdate(args) {
 
 async function cmdComment(args) {
   const { apiKey } = await loadConfig();
-  if (!args.ref) die("comment requires an issue id or key");
-  if (!args.body) die("--body is required for `comment`");
+  if (typeof args.ref !== "string" || !args.ref) die("comment requires an issue id or key");
+  const body = requireString(args, "body", "comment");
   const issueId = await resolveIssueId(apiKey, args.ref);
   const data = await gql(
     apiKey,
@@ -207,14 +230,14 @@ async function cmdComment(args) {
          comment { id body url }
        }
      }`,
-    { input: { issueId, body: args.body } },
+    { input: { issueId, body } },
   );
   process.stdout.write(JSON.stringify(data.commentCreate.comment, null, 2) + "\n");
 }
 
 async function cmdGet(args) {
   const { apiKey } = await loadConfig();
-  if (!args.ref) die("get requires an issue id or key");
+  if (typeof args.ref !== "string" || !args.ref) die("get requires an issue id or key");
   const data = await gql(
     apiKey,
     `query($key: String!) {
@@ -234,10 +257,12 @@ async function cmdGet(args) {
 
 async function cmdList(args) {
   const { apiKey, cfg } = await loadConfig();
+  const stateName = optionalString(args, "state");
+  const parent = optionalString(args, "parent");
   const filter = { team: { id: { eq: cfg.team_id } } };
-  if (args.state) filter.state = { id: { eq: resolveStateId(cfg, args.state) } };
-  if (args.parent) {
-    const parentUuid = await resolveIssueId(apiKey, args.parent);
+  if (stateName) filter.state = { id: { eq: resolveStateId(cfg, stateName) } };
+  if (parent) {
+    const parentUuid = await resolveIssueId(apiKey, parent);
     filter.parent = { id: { eq: parentUuid } };
   }
   const data = await gql(
@@ -256,6 +281,18 @@ async function cmdList(args) {
 // Tiny argv parser (no deps)
 // ---------------------------------------------------------------------------
 
+// Known flags that take a value. Anything else listed as `--foo` with no
+// value following is rejected, so `--body` without a string doesn't silently
+// become `true` and slip past `if (!args.body)` checks downstream.
+const STRING_FLAGS = new Set([
+  "title",
+  "description",
+  "parent",
+  "state",
+  "body",
+  "limit",
+]);
+
 function parseArgs(argv) {
   // argv comes in as process.argv.slice(2)
   const subcommand = argv[0];
@@ -266,11 +303,18 @@ function parseArgs(argv) {
     if (tok.startsWith("--")) {
       const key = tok.slice(2);
       const next = rest[i + 1];
-      if (next === undefined || next.startsWith("--")) {
-        out[toCamel(key)] = true;
-      } else {
+      const hasValue = next !== undefined && !next.startsWith("--");
+      if (STRING_FLAGS.has(key)) {
+        if (!hasValue) die(`--${key} requires a value`);
         out[toCamel(key)] = next;
         i += 1;
+      } else if (hasValue) {
+        // Unknown flag with a value — accept as string for forward-compat.
+        out[toCamel(key)] = next;
+        i += 1;
+      } else {
+        // Unknown bare flag — treat as boolean.
+        out[toCamel(key)] = true;
       }
     } else {
       out._.push(tok);
@@ -278,7 +322,11 @@ function parseArgs(argv) {
   }
   // Positional ref for update/comment/get
   if (out._.length > 0) out.ref = out._[0];
-  if (out.limit !== undefined) out.limit = Number(out.limit);
+  if (out.limit !== undefined) {
+    const n = Number(out.limit);
+    if (!Number.isInteger(n) || n <= 0) die(`--limit must be a positive integer, got "${out.limit}"`);
+    out.limit = n;
+  }
   return { subcommand, args: out };
 }
 
