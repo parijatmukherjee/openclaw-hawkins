@@ -64,10 +64,10 @@ Ask the operator the following before doing anything that writes to the host. If
    The orchestrator is yourself. Default name suggestion: pick a playful one (e.g., "Conductor", "Maestro"). Default emoji: 🎼. The operator may already have an identity in their workspace `IDENTITY.md` — if so, reuse it and skip this question.
 
 2. **Text-specialist model.**
-   Default: `ollama/kimi-k2.6:cloud`. Operator can override with anything they have auth for (e.g., `anthropic/claude-sonnet-4-5`, `openai/gpt-4o`, `groq/moonshotai/kimi-k2-instruct-0905`).
+   Default: `ollama/kimi-k2.6:cloud`. Operator can override with anything they have auth for (e.g., `openai/gpt-4o`, `groq/moonshotai/kimi-k2-instruct-0905`, any Anthropic model).
 
 3. **Vision-specialist model.**
-   Default: `ollama/kimi-k2.5:cloud`. Must be image-capable (text + image input). Anthropic Claude with image input and OpenAI GPT-4o both work.
+   Default: `ollama/kimi-k2.5:cloud`. Must be image-capable (text + image input). Anthropic vision-enabled models and `openai/gpt-4o` both work.
 
 4. **Linear ticket oversight (yes / no).**
    If yes: ask for the operator's Linear workspace URL slug, team key (e.g., `ENG`), and how they want to store the API key (1Password ref vs `$LINEAR_API_KEY` in shell env). If 1Password: ask for the vault and item name they'd like to use. If no: skip Linear setup entirely (~/.openclaw/workspace/LINEAR.md is not installed and the orchestrator's AGENTS.md still works without tickets).
@@ -165,6 +165,46 @@ Smoke-test Linear:
 ```bash
 linear-ticket list --limit 5
 ```
+
+### Step 5.5 — optional: install ASO (durable orchestration layer)
+
+If the operator wants the protocol to survive crashes and use the `aso/spec.md` activation gate, install the ASO Node library. **Ask first** — it adds a MariaDB dependency.
+
+Prerequisites:
+- Node ≥ 20 (`node -v`).
+- MariaDB server reachable from this host. The operator can use a local server (`apt install mariadb-server`) or a cloud instance.
+
+Have the operator (or their DBA) run:
+
+```sql
+CREATE DATABASE orchestra CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'orchestra'@'%' IDENTIFIED BY '<a-strong-password>';
+GRANT INSERT, SELECT, UPDATE, DELETE ON orchestra.* TO 'orchestra'@'%';
+FLUSH PRIVILEGES;
+```
+
+Then build and bootstrap the schema:
+
+```bash
+cd "$REPO_DIR"
+npm ci                  # or `make install`
+npm run build           # or `make build`
+export MARIADB_URL=mariadb://<host>:3306/orchestra
+export MARIADB_USER=orchestra
+export MARIADB_PASSWORD=<password>     # store via 1Password if available
+export LINEAR_API_KEY=<lin_api_…>
+make bootstrap-db       # or: npx aso init-db
+```
+
+Smoke-test:
+
+```bash
+npx aso status                           # → "(ledger empty)"
+npx aso triage --seconds 60              # → {"activate": true, ...}
+npx aso recover                          # → {"unfinishedTotal": 0, ...}
+```
+
+If any of these fail, **stop and ask the operator** — never blindly retry. The full integration recipe is in `INSTALL.md §9`.
 
 ### Step 6 — restart the gateway
 

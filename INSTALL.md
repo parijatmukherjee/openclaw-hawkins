@@ -30,8 +30,8 @@ cd ~/openclaw-orchestra
 Override the default models if needed:
 
 ```bash
-OPENCLAW_ORCHESTRA_TEXT_MODEL="anthropic/claude-sonnet-4-5" \
-OPENCLAW_ORCHESTRA_VISION_MODEL="anthropic/claude-sonnet-4-5" \
+OPENCLAW_ORCHESTRA_TEXT_MODEL="groq/moonshotai/kimi-k2-instruct-0905" \
+OPENCLAW_ORCHESTRA_VISION_MODEL="ollama/kimi-k2.5:cloud" \
   ./scripts/setup.sh
 ```
 
@@ -206,6 +206,117 @@ openclaw agent --agent main --message \
 ```
 
 You should see the orchestrator acknowledge + dispatch + synthesize the system-agent's report.
+
+## 9. (Optional but recommended) Install ASO — the durable orchestration layer
+
+Everything above is **stateless** — the orchestrator agent re-decides what to do every turn, and a crash mid-flight loses the plan. The **Agentic Swarm Orchestrator (ASO)** library adds:
+
+- A MariaDB ledger row per orchestration (one row, four columns + state enum).
+- Linear-backed sub-task tracking (you've already wired this if you did step 6).
+- A `aso recover` command that scans for unfinished work on startup and cross-references Linear for the resume point.
+- A `aso triage` command that returns the spec §3.1 activation decision so the orchestrator agent can route correctly.
+
+The full contract lives in [`aso/spec.md`](aso/spec.md). Follow it if you implement ASO in another language.
+
+### 9.1 Prerequisites
+
+- **Node ≥ 20** (`node -v`).
+- **MariaDB** (local or remote) with a dedicated database for ASO. We
+  recommend a dedicated user scoped to `INSERT, SELECT, UPDATE` on the
+  `orchestration_ledger` table.
+
+DBA / operator one-time setup:
+
+```sql
+CREATE DATABASE orchestra CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'orchestra'@'%' IDENTIFIED BY '<a-strong-password>';
+GRANT INSERT, SELECT, UPDATE, DELETE ON orchestra.* TO 'orchestra'@'%';
+FLUSH PRIVILEGES;
+```
+
+(If TLS is enforced server-side, add `REQUIRE SSL` to the `CREATE USER`
+statement. The library supports `MARIADB_SSL=insecure` for self-signed certs.)
+
+### 9.2 Install the library
+
+```bash
+git clone https://github.com/parijatmukherjee/openclaw-orchestra.git
+cd openclaw-orchestra
+make install        # npm ci / npm install
+make build          # compile TypeScript into dist/
+```
+
+You now have an `aso` CLI on the local `node_modules/.bin/aso` path (or via
+`npx aso ...`).
+
+### 9.3 Configure
+
+The library reads these env vars (see [`aso/spec.md`](aso/spec.md) §5):
+
+| Variable | Purpose |
+|----------|---------|
+| `MARIADB_URL` | `mariadb://<host>[:port]/<database>` (credentials in URL win if present) |
+| `MARIADB_USER` | DB user (skip if embedded in the URL) |
+| `MARIADB_PASSWORD` | DB password (skip if embedded) |
+| `MARIADB_SSL` | `disabled` \| `preferred` (default) \| `required` \| `insecure` |
+| `LINEAR_API_KEY` | Linear personal API token (required) |
+
+Add them to your shell, the orchestrator agent's systemd unit, or wherever
+its env is sourced. **Never commit them.**
+
+### 9.4 Apply the schema
+
+```bash
+make bootstrap-db        # uses the `mariadb` / `mysql` client
+# or, equivalent, via Node:
+npx aso init-db
+```
+
+Both paths apply [`aso/schema.sql`](aso/schema.sql) — the single
+`orchestration_ledger` table. The script is idempotent (`CREATE TABLE IF NOT
+EXISTS`).
+
+### 9.5 Smoke-test
+
+```bash
+npx aso status        # expect: "(ledger empty)"
+npx aso triage --seconds 60        # expect: {"activate": true, ...}
+npx aso recover                    # expect: {"unfinishedTotal": 0, ...}
+```
+
+### 9.6 Wire it into the orchestrator agent
+
+The orchestrator agent shells out to `aso` (and reads / writes Linear via
+`linear-ticket`) at each protocol step. Reference patterns are documented in
+[`orchestrator/AGENTS.md`](orchestrator/AGENTS.md). The minimum integration
+is:
+
+```bash
+# at the top of each operator request the orchestrator handles:
+aso triage --seconds <est> --domain <agent-id> --domain <agent-id> ...
+# → if {"activate": false}, handle inline; otherwise dispatch via the
+#   linear-ticket + openclaw agent pattern below.
+```
+
+A complete reference implementation (in Node) lives in [`src/orchestrator.ts`](src/orchestrator.ts). You can call it directly from your own glue code:
+
+```ts
+import { Orchestrator, Ledger, LinearClient, dispatchSpecialist } from "openclaw-orchestra";
+
+const orchestrator = new Orchestrator({
+  ledger: Ledger.fromEnv(),
+  linear: new LinearClient(),
+  linearTeamId: process.env.LINEAR_TEAM_ID!,
+  linearDoneStateId: process.env.LINEAR_DONE_STATE_ID,
+  dispatch: (agent, message, timeoutSeconds) =>
+    dispatchSpecialist(agent, message, { timeoutSeconds }),
+});
+
+const result = await orchestrator.run({
+  objective: "Stand up the staging monitoring stack",
+  planner: (_objective, _brief) => [ /* … your sub-tasks … */ ],
+});
+```
 
 ## Troubleshooting
 

@@ -1,0 +1,75 @@
+{
+  "name": "openclaw-orchestra",
+  "version": "0.1.0",
+  "description": "Agentic Swarm Orchestrator (ASO) for OpenClaw — supervisor-pattern logic with Linear ticket oversight and MariaDB durable state.",
+  "license": "MIT",
+  "author": "Parijat Mukherjee",
+  "homepage": "https://github.com/parijatmukherjee/openclaw-orchestra",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/parijatmukherjee/openclaw-orchestra.git"
+  },
+  "bugs": {
+    "url": "https://github.com/parijatmukherjee/openclaw-orchestra/issues"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "aso": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "aso/spec.md",
+    "aso/schema.sql",
+    "scripts/bootstrap-aso-db.sh",
+    "README.md",
+    "INSTALL.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "openclaw",
+    "agentic",
+    "orchestration",
+    "linear",
+    "mariadb",
+    "swarm",
+    "supervisor"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "watch": "tsc -p tsconfig.json --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage",
+    "lint": "eslint src tests",
+    "format": "prettier --write \"{src,tests}/**/*.{ts,tsx,json,md}\"",
+    "format:check": "prettier --check \"{src,tests}/**/*.{ts,tsx,json,md}\"",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist coverage .vitest-cache",
+    "prepublishOnly": "npm run clean && npm run lint && npm run test && npm run build"
+  },
+  "dependencies": {
+    "commander": "^12.1.0",
+    "mariadb": "^3.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@vitest/coverage-v8": "^2.1.0",
+    "eslint": "^9.9.0",
+    "globals": "^15.9.0",
+    "prettier": "^3.3.0",
+    "typescript": "^5.5.0",
+    "typescript-eslint": "^8.0.0",
+    "vitest": "^2.1.0"
+  }
+}

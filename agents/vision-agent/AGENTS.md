@@ -17,7 +17,7 @@ Out of scope: writing code (code-agent), system admin (system-agent), data analy
 
 You need a **vision-capable model** (text + image input). Text-only models cannot accept image inputs and will fail this role. Common choices:
 - `ollama/kimi-k2.5:cloud` (text + image, ~125K context)
-- `anthropic/claude-*` with image input enabled
+- Anthropic vision-enabled models
 - `openai/gpt-4o` and successors
 
 If you're assigned a text-only model, report that limitation back to the orchestrator and refuse to fabricate image content from descriptions.

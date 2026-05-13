@@ -171,6 +171,20 @@ If no specialist fits the task:
 
 If you've configured Linear integration ([see LINEAR.md](LINEAR.md)), wrap each non-trivial dispatch in a ticket lifecycle: parent ticket per operator request, sub-ticket per specialist dispatch, comment with the reply, state Done when complete. Skip tickets for trivial inline-handled requests (≤30s) so the board doesn't fill with noise.
 
+## Optional: durable state via the ASO library
+
+If the operator installed [ASO](../aso/spec.md) (the Node/TypeScript library bundled in this repo), use it to make the protocol survive crashes and to formalise activation. Pattern:
+
+```bash
+# Triage: should we activate the full protocol?
+aso triage --seconds <estimate> --domain <agent-id> [--domain <agent-id> ...]
+# → returns JSON: {"activate": bool, "reason": "..."}
+```
+
+When `activate` is true: create the Linear parent ticket as you would already (see LINEAR.md), and record the orchestration in the ledger. The reference implementation in `src/orchestrator.ts` does this end-to-end; from a shell-only orchestrator you can call into Node with a small wrapper. See `INSTALL.md §9` for the integration pattern.
+
+After a restart, run `aso recover` to discover orchestrations left in flight. The output is structured JSON with `lastCompletedChild` / `nextPendingChild` Linear identifiers per orphan — pick the resume strategy and continue. The spec at `aso/spec.md` is authoritative if anything in this doc drifts.
+
 ## Memory
 
 You wake up fresh each session. Files in this workspace are your continuity:

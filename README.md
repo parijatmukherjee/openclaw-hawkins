@@ -2,7 +2,7 @@
   <img src="banner.png" alt="openclaw-orchestra" width="100%">
 </p>
 
-# 🦞 openclaw-orchestra — Multi-Agent Orchestration for OpenClaw (Claude-Powered Autonomous Workflows)
+# 🦞 openclaw-orchestra — Multi-Agent Orchestration for OpenClaw (LLM-Powered Autonomous Workflows)
 
 [![GitHub stars](https://img.shields.io/github/stars/parijatmukherjee/openclaw-orchestra?style=social)](https://github.com/parijatmukherjee/openclaw-orchestra/stargazers)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -36,7 +36,7 @@ One conversational orchestrator + six isolated specialist agents (🔧 `system`,
 
 ### 🤖 Let an AI agent install it for you
 
-> ⚡ **This repo ships with a [`SKILL.md`](SKILL.md)** — an OpenClaw skill manifest that any capable agent (your existing OpenClaw orchestrator, Claude Code, or any AI with shell access on the host) can use to install and configure this pattern end to end.
+> ⚡ **This repo ships with a [`SKILL.md`](SKILL.md)** — an OpenClaw skill manifest that any capable agent (your existing OpenClaw orchestrator, or any AI assistant with shell access on the host) can use to install and configure this pattern end to end.
 
 🪄 **Step 1.** Drop the skill into your workspace:
 
@@ -52,7 +52,7 @@ curl -fsSL https://raw.githubusercontent.com/parijatmukherjee/openclaw-orchestra
 
 ✨ The skill walks the agent through prerequisite checks, repo clone, agent creation, workspace overlay, optional Linear wiring, and end-to-end smoke tests. It will ask you the personalization questions (orchestrator name, vibe, host facts) before making changes.
 
-💡 If you don't have a working orchestrator yet, you can paste the contents of `SKILL.md` into a Claude Code / Codex / any shell-capable AI session running on the target host.
+💡 If you don't have a working orchestrator yet, you can paste the contents of `SKILL.md` into any shell-capable AI assistant running on the target host.
 
 ---
 
@@ -171,6 +171,33 @@ Setup is in [orchestrator/LINEAR.md](orchestrator/LINEAR.md). CLI is [tools/line
 
 ---
 
+## 🧠 Durable orchestration with **ASO** (Agentic Swarm Orchestrator)
+
+The orchestrator pattern above is stateless: a crash mid-flight loses the plan. **ASO** is an optional Node/TypeScript library bundled in this repo that adds **durable state in MariaDB + Linear-backed recovery** to the same pattern, implemented from the canonical [`aso/spec.md`](aso/spec.md).
+
+What you get:
+
+- 💾 **Survives restarts.** A single `orchestration_ledger` row per request; recovery scans for unfinished runs on startup and cross-references Linear for the resume point.
+- 🚦 **Activation gate.** Spec §3.1: protocol fires when work is estimated > 30 s **or** spans > 2 specialist domains. Trivial inline requests bypass it.
+- 🔍 **Operator visibility.** `aso status` and `aso recover` give a live view of the swarm without opening Linear.
+- 🧪 **Quality bar.** Strict TypeScript, vitest with 99 % statement coverage, ESLint + Prettier + shellcheck enforced in CI.
+
+Install (after MariaDB is available — local or cloud):
+
+```bash
+npm install                              # or `make install`
+export MARIADB_URL=mariadb://h:3306/orchestra
+export MARIADB_USER=orchestra
+export MARIADB_PASSWORD=...
+export LINEAR_API_KEY=lin_api_...
+make bootstrap-db                        # apply aso/schema.sql
+npx aso status                           # confirm the ledger is reachable
+```
+
+The spec, the schema, and every env var are documented in [`aso/spec.md`](aso/spec.md). The library API surface (CLI + importable `Orchestrator` / `Ledger` / `LinearClient`) is in [`src/`](src/).
+
+---
+
 ## ➕ Adding a new specialist
 
 1. 🆔 Pick an id (kebab-case, e.g. `media-agent`).
@@ -189,7 +216,23 @@ openclaw-orchestra/
 ├── 🤖 SKILL.md                 # AI agent installer manifest
 ├── 📖 README.md                # You are here
 ├── 📘 INSTALL.md               # Detailed human install guide
+├── 🧪 CHANGELOG.md             # Notable changes
+├── 🤝 CONTRIBUTING.md          # How to contribute
+├── 🛡️  SECURITY.md             # Vulnerability disclosure
 ├── ⚖️  LICENSE                 # MIT
+├── 🧰 Makefile                 # Operator + developer entrypoints
+├── 📦 package.json             # npm package metadata, scripts, deps
+├── 🧠 aso/                     # ASO library — canonical contract
+│   ├── spec.md                 # The specification (source of truth)
+│   └── schema.sql              # `orchestration_ledger` table
+├── 🧱 src/                     # ASO TypeScript implementation
+│   ├── persistence.ts          # MariaDB ledger CRUD
+│   ├── linear-client.ts        # Linear GraphQL client
+│   ├── dispatcher.ts           # openclaw agent --json wrapper
+│   ├── orchestrator.ts         # §3 protocol engine + §3.1 triage
+│   ├── recovery.ts             # §4.2 cross-reference + resume
+│   └── cli.ts                  # `aso` CLI
+├── 🧪 tests/                   # vitest suites; coverage gated in CI
 ├── 🎼 orchestrator/            # Goes into your main agent's workspace
 │   ├── AGENTS.md               # Dispatch protocol + architecture
 │   ├── TOOLS.md.template       # Tool surface (template)
@@ -208,7 +251,9 @@ openclaw-orchestra/
 ├── 🛠️  tools/
 │   ├── linear-ticket           # Linear CLI (stdlib Python)
 │   └── linear.json.template    # Linear config template
-└── 🚀 scripts/setup.sh         # Bootstrap script
+└── 🚀 scripts/
+    ├── setup.sh                # Specialist-agent bootstrap
+    └── bootstrap-aso-db.sh     # Apply aso/schema.sql via mariadb client
 ```
 
 ---

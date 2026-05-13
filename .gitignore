@@ -14,13 +14,20 @@ credentials/
 *.key
 *.pem
 
-# Python / Node
+# Node build / cache
+node_modules/
+dist/
+coverage/
+.vitest-cache/
+.eslintcache
+.cache/
+*.tsbuildinfo
+
+# Python (legacy — kept so dev machines stay clean if leftovers remain)
 __pycache__/
 *.pyc
 venv/
 .venv/
-node_modules/
-.cache/
 
 # OS junk
 .DS_Store
