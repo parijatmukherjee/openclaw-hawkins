@@ -202,16 +202,18 @@ Setup: [`orchestrator/LINEAR.md`](orchestrator/LINEAR.md). CLI: [`tools/linear-t
 
 ---
 
-## 🧠 Durable orchestration with **VINES**
+## 🧠 Durable orchestration with **VINES** — _Versatile Integration for Networked Execution & State_
 
-The Nexus + Tendrils pattern above is stateless: a crash mid-Pulse loses the plan. **VINES** is an optional Node/TypeScript library that adds **durable state in MariaDB + Linear-backed recovery** to the same pattern, implemented from the canonical [`vines/spec.md`](vines/spec.md).
+The Nexus + Tendrils pattern above is **stateless**: a crash mid-Pulse loses the plan. **VINES** is the durability layer — a Node/TypeScript library + CLI that adds **persistent orchestration state in MariaDB and Linear-backed recovery** to the same pattern. Canonical spec: [`vines/spec.md`](vines/spec.md).
+
+> 🧭 **Mental model.** VINES owns _state_ — one durable row per request that records "where am I in this orchestration, who's the active Tendril, what's the Linear parent ticket". If the host reboots mid-Pulse, VINES is what lets the Nexus pick up exactly where it left off instead of asking the operator to start over.
 
 What you get:
 
 - 💾 **Survives restarts.** A single `orchestration_ledger` row per request; recovery scans for unfinished runs on startup and cross-references Linear for the resume point.
 - 🩸 **Sensitivity Check gate.** Spec §3.1: protocol fires only when work is estimated > 30 s **or** spans > 2 specialist domains. Trivial requests bypass it.
+- 🧭 **Linear-anchored recovery.** Every durable orchestration carries a `linearParentId`; `vines recover` walks the parent's children to figure out the last completed step + next pending one, and **distinguishes transient Linear API errors from truly orphaned work** so a flaky network never destroys live state.
 - 🔍 **Operator visibility.** `vines status` and `vines recover` give a live view of the swarm without opening Linear.
-- 🧪 **Quality bar.** Strict TypeScript, vitest with 99 % statement coverage, ESLint + Prettier + shellcheck enforced in CI.
 
 Install (after MariaDB is available — local or cloud):
 
@@ -222,11 +224,43 @@ export MARIADB_URL=mariadb://h:3306/hawkins
 export MARIADB_USER=hawkins
 export MARIADB_PASSWORD=...
 export LINEAR_API_KEY=lin_api_...
-make bootstrap-db                        # apply vines/schema.sql
+make bootstrap-vines-db                  # apply vines/schema.sql
 npx vines status                         # confirm the ledger is reachable
 ```
 
 Full env-var matrix and the worked end-to-end agent integration sequence: [`INSTALL.md §9`](INSTALL.md). Library + CLI API: [`src/`](src/).
+
+---
+
+## 🐙 Shared memory with **VECNA** — _Versatile Entity for Contextual Network Awareness_
+
+Where VINES owns _state_, **VECNA** owns _memory_. It is the Hive's **cross-orchestration knowledge layer** — a Node/TypeScript service + client + CLI that gives every Tendril a shared, searchable, decay-aware memory of what the swarm has learned across every request it has ever handled. Canonical spec: [`vecna/spec.md`](vecna/spec.md).
+
+> 🧬 **Mental model.** When `system-agent` discovers something useful at 3 PM ("setting `innodb_buffer_pool_size` to 2G fixed our latency on Ubuntu 24.04") it calls `vecna connect`. When `data-agent` hits a similar problem at 9 PM, it calls `vecna recall mariadb-tuning` and gets back the fragment, already ranked by importance, ticket-affinity, and recency. The Nexus pre-fetches relevant memory at the start of each Pulse and injects it into the next prompt. **The swarm stops forgetting.**
+
+What you get:
+
+- 🩸 **Topic-based recall.** `GET /v1/recall/:topic` returns non-deprecated fragments ranked by ticket-affinity → `importance` (1–5) → recency, with a decay penalty for stale (> 6 months) low-importance entries. Pick `format=json` for programmatic use or `format=context` to receive a pre-summarised string ready to inject into the next prompt.
+- 🧬 **Knowledge evolution.** When an old memory is wrong (outdated API version, deprecated config knob), any Tendril calls `vecna evolve <id>` — VECNA atomically deprecates the old fragment and inserts the corrected one on the same topic, so the recall pipeline self-corrects over time.
+- 🔁 **Dedup window.** Repeated high-importance writes within a 5-minute window are collapsed instead of producing noise; the existing fragment is returned with a `deduplicated: true` flag.
+- 🔍 **Global full-text search.** When no clear topic is known, `vecna search "<keyword>"` falls back to `MATCH(content) AGAINST (?)` across every non-deprecated fragment.
+- 🩻 **Decay logic.** Recall ranking automatically deprioritises fragments older than 6 months unless `importance = 5` ("vital") — enforced at query time in the `ORDER BY`, no background job needed.
+- 🌐 **Two deployment modes.** Embed `HiveStore` directly in any Node process for in-process recall, or run the standalone `vecna serve` HTTP Nexus (Express, optional Bearer auth, default `127.0.0.1:8765`) so non-Node Tendrils can talk to the Hive over the network.
+
+Install (after MariaDB is available):
+
+```bash
+make bootstrap-vecna-db                  # apply vecna/schema.sql
+export VECNA_AUTH_TOKEN=$(openssl rand -hex 32)   # optional but recommended
+make vecna-serve                         # start the Hive Nexus on 127.0.0.1:8765
+# in another shell:
+vecna connect --topic mariadb-tuning \
+              --content "innodb_buffer_pool_size=2G fixed our latency" \
+              --source system-agent --importance 5
+vecna recall mariadb-tuning              # see the fragment come back
+```
+
+Full env-var matrix (port, auth token, dedup window) + the hardened systemd user unit for production: [`INSTALL.md §10`](INSTALL.md). HTTP API contract: [`vecna/spec.md §5`](vecna/spec.md). Library + CLI: [`src/hive/`](src/hive/).
 
 ---
 
