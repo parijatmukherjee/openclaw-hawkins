@@ -33,7 +33,7 @@ sessions_spawn(
 ```
 
 ## Task Prefix
-Always prefix vision tasks with `[VISION]` so Dobby routes them correctly:
+Always prefix vision tasks with `[VISION]` so the Nexus routes them correctly:
 - `[VISION]` — Image analysis, screenshot reading, visual tasks → routes to `vision-agent`
 
 ## Examples
@@ -59,6 +59,6 @@ sessions_spawn(
 ```
 
 ## Communication
-- Dobby stays conversational
-- Acknowledge before spawning: "Dobby will delegate this image analysis to the vision agent."
+- The Nexus stays conversational
+- Acknowledge before spawning: "I'll delegate this image analysis to the vision agent."
 - Synthesize results when complete

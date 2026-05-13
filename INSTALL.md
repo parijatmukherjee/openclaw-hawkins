@@ -288,9 +288,8 @@ npx vines recover                    # expect: {"unfinishedTotal": 0, ...}
 
 ### 9.6 Wire it into the orchestrator agent
 
-Your existing OpenClaw orchestrator (Dobby, Maestro, Conductor — whatever
-yours is called) drives the `vines` CLI and `linear-ticket` via its `exec`
-tool. The CLI surface is intentionally shell-callable so an LLM-driven
+Your existing OpenClaw orchestrator (Maestro, Conductor — whatever yours is
+called) drives the `vines` CLI and `linear-ticket` via its `exec` tool. The CLI surface is intentionally shell-callable so an LLM-driven
 agent can do this directly — no Node glue required.
 
 #### The integration sequence (worked example)

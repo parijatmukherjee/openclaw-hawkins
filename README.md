@@ -55,7 +55,35 @@ Three layers, full vocabulary in [`docs/branding.md`](docs/branding.md):
 
 ---
 
-## 🚀 Two ways to install
+## 🚀 Three ways to install
+
+### 🔌 As an OpenClaw plugin (recommended)
+
+⚡ **Two commands** if you already have OpenClaw ≥ 2026.5.0 and a reachable MariaDB. This is the fastest path and the one you should use unless you specifically want to work from source.
+
+```bash
+# 1. Install from ClawHub (npm fallback works too)
+openclaw plugins install clawhub:openclaw-hawkins \
+  || openclaw plugins install npm:openclaw-hawkins
+
+# 2. Provision schemas + the 6 specialist agents in one shot
+openclaw hawkins setup
+```
+
+✨ The plugin registers **12 typed tools** (`vines_*` × 6, `vecna_*` × 6) with the OpenClaw runtime — any agent in your gateway can call them by name. The `hawkins setup` command also prints an exhaustive **post-install banner** listing every tool, verification commands, and the remaining personalisation steps, so a human operator _or_ an AI installer agent can finish the install without consulting any other doc.
+
+Configure the plugin via `openclaw config`:
+
+```bash
+openclaw config set plugins.entries.openclaw-hawkins.config.mariadb.url  "mariadb://your-host:3306/hawkins"
+openclaw config set plugins.entries.openclaw-hawkins.config.mariadb.user "hawkins"
+openclaw config set plugins.entries.openclaw-hawkins.config.mariadb.ssl  "insecure"     # for self-signed cloud certs
+# Password MUST come from the gateway env — the plugin schema refuses to store it in openclaw.json.
+```
+
+🔒 **Secrets policy:** `MARIADB_PASSWORD` and `LINEAR_API_KEY` are read from the gateway's environment only — never from `openclaw.json`. The plugin's config schema deliberately rejects them. Wire them via a 0600 systemd `EnvironmentFile` (the post-install banner shows the exact recipe), or feed them from 1Password using the SKILL.md recipe.
+
+---
 
 ### 🤖 Let an AI agent install it for you
 
@@ -75,9 +103,9 @@ curl -fsSL https://raw.githubusercontent.com/parijatmukherjee/openclaw-hawkins/m
 
 ---
 
-### 🧑 Install it yourself
+### 🧑 Install it yourself (from source)
 
-⏱️ The human path takes ~5 minutes:
+⏱️ The from-source path takes ~5 minutes — useful when working on a feature branch or air-gapped host:
 
 ```bash
 # 1️⃣ Clone

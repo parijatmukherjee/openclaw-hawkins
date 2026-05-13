@@ -1,0 +1,76 @@
+{
+  "id": "openclaw-hawkins",
+  "name": "OpenClaw Hawkins — VINES + VECNA",
+  "description": "Durable orchestration state (VINES) and shared agent memory (VECNA) for OpenClaw. Provisions a 6-tendril Nexus swarm in one command.",
+  "activation": {
+    "onStartup": true
+  },
+  "contracts": {
+    "tools": [
+      "vines_triage",
+      "vines_start",
+      "vines_set_state",
+      "vines_attach_linear_parent",
+      "vines_recover",
+      "vines_status",
+      "vecna_connect",
+      "vecna_recall",
+      "vecna_evolve",
+      "vecna_search",
+      "vecna_fragment",
+      "vecna_healthz"
+    ]
+  },
+  "uiHints": {
+    "mariadb.url": {
+      "label": "MariaDB URL",
+      "help": "mariadb://<host>[:port]/<database>. Credentials in the URL take precedence over user/password fields."
+    },
+    "mariadb.user": {
+      "label": "MariaDB user",
+      "help": "Database account with INSERT/SELECT/UPDATE on the vines_ledger + vecna_hive tables."
+    },
+    "mariadb.ssl": {
+      "label": "TLS mode",
+      "help": "disabled | preferred | required | insecure. Use insecure only for self-signed cloud DBs you control."
+    },
+    "autoRecovery": {
+      "label": "Auto-recovery",
+      "help": "If true, the plugin scans the orchestration ledger before each tool call and logs unfinished runs. Default false."
+    },
+    "vecna.dedupWindowMinutes": {
+      "label": "VECNA dedup window",
+      "help": "Minutes within which identical high-importance fragments are collapsed into the existing row. Default 5."
+    }
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "mariadb": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Non-secret connection metadata only. `MARIADB_PASSWORD` MUST come from the gateway env (via a 0600 EnvironmentFile or `systemctl --user set-environment`) — the plugin refuses to accept a password in config so secrets never sit as plaintext in openclaw.json.",
+        "properties": {
+          "url": { "type": "string" },
+          "user": { "type": "string" },
+          "ssl": {
+            "type": "string",
+            "enum": ["disabled", "preferred", "required", "insecure"]
+          }
+        }
+      },
+      "autoRecovery": { "type": "boolean" },
+      "vecna": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "dedupWindowMinutes": { "type": "number", "minimum": 0 }
+        }
+      }
+    }
+  },
+  "commandAliases": [
+    { "name": "hawkins" }
+  ]
+}
