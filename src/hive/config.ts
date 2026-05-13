@@ -34,6 +34,9 @@ export function loadVecnaServerConfig(env: NodeJS.ProcessEnv = process.env): Vec
       `VECNA_DEDUP_WINDOW_MIN must be a non-negative number; got '${env.VECNA_DEDUP_WINDOW_MIN}'`,
     );
   }
+  // VECNA_AUTH_TOKEN is read from process env — never hardcoded. Static
+  // scanners sometimes flag the `const authToken = … ?? null` shape as a
+  // possible hardcoded secret; the env-read makes it a false positive.
   const authToken = env.VECNA_AUTH_TOKEN ?? null;
   if (authToken !== null && authToken.length === 0) {
     throw new Error("VECNA_AUTH_TOKEN, when set, must be non-empty");

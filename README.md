@@ -108,8 +108,8 @@ curl -fsSL https://raw.githubusercontent.com/parijatmukherjee/openclaw-hawkins/m
 ⏱️ The from-source path takes ~5 minutes — useful when working on a feature branch or air-gapped host:
 
 ```bash
-# 1️⃣ Clone
-git clone https://github.com/parijatmukherjee/openclaw-hawkins.git ~/openclaw-hawkins
+# 1️⃣ Clone — pin to the latest release tag so the source tree is immutable
+git clone --branch v1.0.2 --depth 1 https://github.com/parijatmukherjee/openclaw-hawkins.git ~/openclaw-hawkins
 cd ~/openclaw-hawkins
 
 # 2️⃣ Create the 6 specialist agents

@@ -14,10 +14,16 @@ Detailed setup for `openclaw-hawkins`. The fast path is `./scripts/setup.sh` the
 
 ## 1. Clone the repo
 
+Pin to a specific release tag rather than the moving `main` branch:
+
 ```bash
-git clone https://github.com/parijatmukherjee/openclaw-hawkins.git ~/openclaw-hawkins
+git clone --branch v1.0.2 --depth 1 https://github.com/parijatmukherjee/openclaw-hawkins.git ~/openclaw-hawkins
 cd ~/openclaw-hawkins
 ```
+
+Bump the `--branch` to the latest tag from
+[the releases page](https://github.com/parijatmukherjee/openclaw-hawkins/releases)
+when a newer one is published.
 
 ## 2. Create the 6 specialist agents
 
@@ -126,6 +132,15 @@ If you want a Linear board where every non-trivial operator request shows up as 
 
 1. Create a Linear workspace (free tier is plenty).
 2. Settings → API → Personal API keys → "Create new key" → copy the `lin_api_...` value.
+
+   > 🔐 **Least-privilege tip.** A Linear Personal API key inherits the full
+   > permissions of the issuing user across every team they belong to. For
+   > production, prefer an **OAuth app token scoped to a single team** so the
+   > orchestrator can only create / comment on / transition tickets in the
+   > team you've designated as the "orchestrator board". Review the tickets
+   > the orchestrator creates within a few minutes of the first dispatch and
+   > abort if anything looks wrong.
+
 3. Fetch your team ID and workflow state UUIDs:
 
    ```bash
@@ -242,7 +257,7 @@ statement. The library supports `MARIADB_SSL=insecure` for self-signed certs.)
 ### 9.2 Install the library
 
 ```bash
-git clone https://github.com/parijatmukherjee/openclaw-hawkins.git
+git clone --branch v1.0.2 --depth 1 https://github.com/parijatmukherjee/openclaw-hawkins.git
 cd openclaw-hawkins
 make install        # npm ci / npm install
 make build          # compile TypeScript into dist/

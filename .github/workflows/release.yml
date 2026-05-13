@@ -87,12 +87,41 @@ jobs:
   publish-clawhub:
     name: publish to ClawHub
     needs: publish-npm
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
-    uses: openclaw/clawhub/.github/workflows/package-publish.yml@v0.15.0
-    with:
-      source: ${{ github.repository }}@${{ github.ref_name }}
-      dry_run: false
-    secrets:
-      clawhub_token: ${{ secrets.CLAWHUB_TOKEN }}
+    steps:
+      - name: Checkout the tagged commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          fetch-depth: 0
+
+      - name: Set up Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Install ClawHub CLI
+        run: npm install -g clawhub
+
+      - name: Publish to ClawHub (explicit --family code-plugin → npm-pack artifact)
+        env:
+          CLAWHUB_TOKEN: ${{ secrets.CLAWHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG_RAW="${GITHUB_REF_NAME:-${{ inputs.tag }}}"
+          VERSION="${TAG_RAW#v}"
+          # The repo top-level has agents/ and skills/ directories, which
+          # ClawHub's auto-detector treats as bundle markers. We explicitly
+          # declare --family code-plugin so the artifact is published in the
+          # ClawPack (npm-pack) format and the readiness check clears.
+          clawhub package publish "${{ github.repository }}@$TAG_RAW" \
+            --family code-plugin \
+            --version "$VERSION" \
+            --tags latest \
+            --source-repo "${{ github.repository }}" \
+            --source-commit "${{ github.sha }}" \
+            --source-ref "$TAG_RAW" \
+            --json
