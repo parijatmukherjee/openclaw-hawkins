@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # bootstrap-aso-db.sh — apply aso/schema.sql to the configured MariaDB.
 #
-# Reads the same env vars as the Python library (see aso/spec.md §5):
+# Reads the same env vars as the Node library (see aso/spec.md §5):
 #
 #   MARIADB_URL       e.g. mariadb://db.example.com:3306/orchestra
 #                          (credentials in the URL are honoured)

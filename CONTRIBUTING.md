@@ -41,11 +41,18 @@ We are cautious about PRs that:
 
 ```bash
 # Common dev loop
-make test               # run the suite
+make test               # run the hermetic unit suite (no network, no DB)
 make coverage           # run with coverage thresholds enforced
 make lint               # eslint
 make format             # prettier + eslint --fix
 make check              # everything CI runs
+
+# Smoke tests against real services (auto-skipped when env vars missing)
+export MARIADB_URL=mariadb://h:3306/orchestra
+export MARIADB_USER=orchestra
+export MARIADB_PASSWORD=…
+export LINEAR_API_KEY=lin_api_…
+make smoke              # `vitest run --config vitest.smoke.config.ts`
 
 # Schema work
 make bootstrap-db       # apply aso/schema.sql via shell client

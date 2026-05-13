@@ -224,7 +224,7 @@ for id in system-agent code-agent research-agent data-agent comm-agent vision-ag
   openclaw agent --agent "$id" \
     --message "Introduce yourself in one sentence. Include your role and one rule you follow." \
     --json --timeout 30 \
-    | python3 -c "import json,sys; print(json.load(sys.stdin)['result']['payloads'][0]['text'])"
+    | jq -r '.result.payloads[0].text'
 done
 ```
 
@@ -243,7 +243,7 @@ Have the orchestrator dispatch to a specialist on its own initiative. From the o
 openclaw agent --agent main \
   --message "Please ask system-agent to report the current disk usage on the root filesystem. Synthesize the answer for me." \
   --json --timeout 120 \
-  | python3 -c "import json,sys; print(json.load(sys.stdin)['result']['payloads'][0]['text'])"
+  | jq -r '.result.payloads[0].text'
 ```
 
 Expected: the orchestrator acknowledges, dispatches to system-agent via exec, parses the reply, and returns a synthesized one-paragraph answer in its own voice.

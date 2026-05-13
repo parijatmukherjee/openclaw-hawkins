@@ -51,6 +51,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "coverage": "vitest run --coverage",
+    "smoke": "vitest run --config vitest.smoke.config.ts",
     "lint": "eslint src tests",
     "format": "prettier --write \"{src,tests}/**/*.{ts,tsx,json,md}\"",
     "format:check": "prettier --check \"{src,tests}/**/*.{ts,tsx,json,md}\"",

@@ -1,8 +1,12 @@
 import { defineConfig } from "vitest/config";
 
+// Default config — runs the hermetic unit suite. Smoke tests live under
+// tests/smoke/**.smoke.test.ts and are wired via `npm run smoke` so they
+// stay out of CI unless explicitly requested.
 export default defineConfig({
   test: {
     include: ["tests/**/*.test.ts"],
+    exclude: ["tests/smoke/**", "node_modules/**", "dist/**"],
     environment: "node",
     globals: false,
     coverage: {

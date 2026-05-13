@@ -1,10 +1,10 @@
 # Specification: Agentic Swarm Orchestrator (ASO)
 
 This document is the canonical specification for the ASO subsystem of
-`openclaw-orchestra`. The Python implementation under `aso/` and the operator
-docs (INSTALL.md, orchestrator/AGENTS.md) all reference this file. If
-behaviour drifts from the spec, the spec wins — update the spec first, then
-the implementation.
+`openclaw-orchestra`. The Node/TypeScript implementation under `src/` and the
+operator docs (INSTALL.md, orchestrator/AGENTS.md) all reference this file.
+If behaviour drifts from the spec, the spec wins — update the spec first,
+then the implementation.
 
 ## 1. Overview
 

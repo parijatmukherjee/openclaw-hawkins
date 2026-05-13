@@ -8,6 +8,26 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Added
 
+- **Smoke-test suite** under `tests/smoke/`, run via `npm run smoke` (or
+  `make smoke`). Tests are gated on the env vars they need
+  (`MARIADB_URL`, `LINEAR_API_KEY`, etc.) — missing creds yield a clean
+  skip rather than a failure. Covers MariaDB ledger roundtrip, Linear API
+  authentication, `openclaw` CLI availability, and the `linear-ticket`
+  binary.
+
+### Changed
+
+- **`tools/linear-ticket` ported from Python to Node** (Node ≥ 20,
+  built-ins only — no `npm install` required to run it). API is unchanged
+  (`create / update / comment / get / list`). The repo no longer ships any
+  Python files.
+- `SKILL.md` swaps the `python3 -c "import json …"` JSON-extraction
+  one-liners for `jq -r '.result.payloads[0].text'`.
+- Doc references that called the ASO library "Python" now correctly say
+  "Node/TypeScript" (`README.md`, `aso/spec.md`, `scripts/bootstrap-aso-db.sh`).
+
+
+
 - **ASO — Agentic Swarm Orchestrator.** A Node/TypeScript library that
   implements the [ASO specification](aso/spec.md): a supervisor-pattern
   protocol with durable state in MariaDB and Linear-backed ticket oversight.

@@ -45,6 +45,10 @@ test: ## Run the test suite once.
 coverage: ## Run tests with coverage; fails under thresholds.
 	npm run coverage
 
+.PHONY: smoke
+smoke: ## Run smoke tests against real services (gated on env vars; see tests/smoke/).
+	npm run smoke
+
 .PHONY: lint
 lint: ## Run eslint.
 	npm run lint

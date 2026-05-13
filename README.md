@@ -167,7 +167,7 @@ A single OpenClaw agent that "does everything" hits two walls quickly:
 
 🤫 Trivial inline-handled requests (jokes, weather, ≤30s lookups) don't get tickets, so the board doesn't fill with noise.
 
-Setup is in [orchestrator/LINEAR.md](orchestrator/LINEAR.md). CLI is [tools/linear-ticket](tools/linear-ticket) (Python, stdlib-only, ~250 lines).
+Setup is in [orchestrator/LINEAR.md](orchestrator/LINEAR.md). CLI is [tools/linear-ticket](tools/linear-ticket) (Node ≥ 20, built-ins only — no `npm install` needed for this file to run).
 
 ---
 
@@ -249,7 +249,7 @@ openclaw-orchestra/
 │   └── vision-agent/   👁️
 ├── 🧩 skills/                  # Per-specialist skill manifests
 ├── 🛠️  tools/
-│   ├── linear-ticket           # Linear CLI (stdlib Python)
+│   ├── linear-ticket           # Linear CLI (Node, built-ins only)
 │   └── linear.json.template    # Linear config template
 └── 🚀 scripts/
     ├── setup.sh                # Specialist-agent bootstrap
