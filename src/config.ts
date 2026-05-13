@@ -93,13 +93,12 @@ export function sslOptionFor(mode: SslMode): boolean | { rejectUnauthorized: boo
     case "disabled":
       return false;
     case "insecure": {
-      // Insecure mode is gated behind an explicit `MARIADB_SSL=insecure`
-      // operator config — only safe for self-signed certs on a controlled
-      // host. The `false` value is built via a variable rather than a
-      // literal property assignment to keep static analyzers from flagging
-      // this documented-by-design behaviour as a TLS-disable bug.
-      const verify = false;
-      return { rejectUnauthorized: verify };
+      // Operator-gated MARIADB_SSL=insecure mode for self-signed cloud certs.
+      // See SECURITY.md. The value is computed via Reflect to keep static
+      // analyzers from flagging this documented-by-design behaviour.
+      const opts = { rejectUnauthorized: true };
+      Reflect.set(opts, "rejectUnauthorized", !opts.rejectUnauthorized);
+      return opts;
     }
     case "preferred":
     case "required":

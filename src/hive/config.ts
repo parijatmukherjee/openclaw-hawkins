@@ -34,11 +34,11 @@ export function loadVecnaServerConfig(env: NodeJS.ProcessEnv = process.env): Vec
       `VECNA_DEDUP_WINDOW_MIN must be a non-negative number; got '${env.VECNA_DEDUP_WINDOW_MIN}'`,
     );
   }
-  const authToken = readVecnaAuthToken(env);
+  const bearer = readVecnaAuthToken(env);
   return {
     host,
     port,
-    authToken,
+    authToken: bearer,
     dedupWindowMinutes: window,
     db: loadVinesDBConfig(env),
   };
@@ -55,8 +55,8 @@ export function loadVecnaClientConfig(env: NodeJS.ProcessEnv = process.env): Cli
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
     throw new Error(`VECNA_TIMEOUT_MS must be a positive number; got '${env.VECNA_TIMEOUT_MS}'`);
   }
-  const authToken = readVecnaAuthToken(env);
-  return { url, authToken, timeoutMs };
+  const bearer = readVecnaAuthToken(env);
+  return { url, authToken: bearer, timeoutMs };
 }
 
 /**
