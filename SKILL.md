@@ -1,22 +1,21 @@
 ---
 name: openclaw-hawkins-installer
 description: |
-  Installs the openclaw-hawkins multi-agent pattern on the current host: one
-  conversational orchestrator + six isolated specialist agents (system, code,
-  research, data, comm, vision). Use this skill when the operator asks to
-  "install openclaw-hawkins", "set up multi-agent orchestration",
-  "deploy the specialists", "wire up the agent swarm", or similar. The skill
-  walks through prerequisite checks, repo clone, agent creation via
-  `openclaw agents add`, workspace overlay, optional Linear integration, and
-  end-to-end smoke tests. Personalization questions are asked of the operator
-  before any host changes are made.
+  Installs openclaw-hawkins (multi-agent orchestration for OpenClaw — the
+  Nexus + six Tendrils + VINES + optional VECNA Hive) on the current host.
+  Designed to run end-to-end without human supervision: each phase has
+  explicit detection, sensible defaults, backup-before-overlay, and
+  per-step verification. Use this skill when an operator asks to "install
+  openclaw-hawkins", "set up multi-agent orchestration", "deploy the
+  Tendrils", "wire up the agent swarm", "upgrade to openclaw-hawkins",
+  or similar.
 ---
 
 # Skill: install openclaw-hawkins
 
-You are installing the [`openclaw-hawkins`](https://github.com/parijatmukherjee/openclaw-hawkins) multi-agent pattern on the host you have shell access to. The end state: one orchestrator (`agent:main` — typically yourself) + six isolated specialist agents reachable via `openclaw agent --agent <id> --message "..."`.
+You are installing the [`openclaw-hawkins`](https://github.com/parijatmukherjee/openclaw-hawkins) multi-agent pattern on the host you have shell access to. The end state: one orchestrator (the **Nexus** — `agent:main`, typically yourself) coordinating six isolated specialist agents (the **Tendrils**: `system-agent`, `code-agent`, `research-agent`, `data-agent`, `comm-agent`, `vision-agent`), with optional **VINES** (durable orchestration state) and **VECNA** (Hive knowledge sharing).
 
-This is a multi-step installation. **Do not skip steps.** Stop and ask the operator at the explicit decision points below.
+This skill is designed for **autonomous execution**. You do not require an operator to answer questions in real time — every decision point has a documented default. Where defaults are wrong, the failure mode is loud and recoverable.
 
 ## Trigger phrases
 
@@ -24,74 +23,215 @@ Invoke this skill when the operator says any of:
 
 - "Install openclaw-hawkins"
 - "Set up the multi-agent orchestration"
-- "Deploy the specialists" / "Wire up the agent swarm"
+- "Deploy the Tendrils" / "Wire up the agent swarm"
 - "Install the orchestra pattern"
 - "Bootstrap openclaw-hawkins on this host"
+- "Upgrade my swarm to openclaw-hawkins"
 
 If the operator says "explain openclaw-hawkins" or "what is openclaw-hawkins," **don't** trigger this skill — just describe the pattern by reading `README.md` from the repo.
 
-## Prerequisites — verify before changes
+---
 
-Run these checks. If any fails, report to the operator and stop:
+## Operating principles (read before doing anything)
+
+1. **Defaults beat questions.** Every decision point in this skill has a default. If you can pick a default, **pick it and proceed**. Only ask the operator when the default could cause data loss.
+
+2. **Detect → act → verify, every step.** Before any destructive action: detect what's already there. Before any "next step": verify the previous one succeeded. If verification fails, recover or halt — never silently continue.
+
+3. **Backup before overlay.** Any time you `cp` over an existing file, first run `cp $TARGET $TARGET.bak.$(date +%s)`. Tell the operator where the backups are in the final report.
+
+4. **Idempotent re-runs.** Re-running this skill on a partially-installed host must converge to the same end state. Database schemas use `CREATE TABLE IF NOT EXISTS`. Agent creation skips existing workspaces. File copies back up before overwriting.
+
+5. **Halt conditions (stop and surface the error):**
+   - OpenClaw version < 2026.5.7.
+   - Gateway not running.
+   - No model configured with auth.
+   - Schema bootstrap fails after one retry.
+   - VECNA `healthz` reports `db: down` after one retry.
+   - Any specialist returns a generic identity after Step 7.
+
+6. **Never disable existing things you don't own.** Don't kill running OpenClaw sessions. Don't delete agents the operator already has. Don't disable skills you didn't install. If you find conflicting state, back it up and proceed; never destroy.
+
+7. **Final report is mandatory.** When done (success or halt), emit the report described in [Phase E](#phase-e--final-report). The operator may not be watching live; the report is how they learn what happened.
+
+---
+
+## Phase 0 — Host probe
+
+Before anything else, probe the host and record its current state. This determines whether you run a **greenfield** install or an **incremental upgrade**.
+
+### 0.1 Capture environment basics
 
 ```bash
-openclaw --version                # require ≥ 2026.5.7
-openclaw gateway status           # require Runtime: running
-which git                         # require git on PATH
-which curl                        # for repo clone fallback
+echo "host:    $(hostname)"
+echo "os:      $(uname -s) $(uname -r)"
+echo "user:    $(id -un)"
+echo "home:    $HOME"
+echo "now:     $(date -Iseconds)"
 ```
 
-Soft-check (warn but allow):
+### 0.2 Probe pre-existing state
+
+Run each check; record the result. Don't fail on any of these — they're informational and feed the install-mode decision below.
 
 ```bash
-which jq                          # used in worked examples; not required
-which op                          # only needed for 1Password-backed Linear key
+# Repository clone
+[ -d "$HOME/openclaw-hawkins/.git" ] && echo "repo: present" || echo "repo: absent"
+
+# Each Tendril workspace
+for id in system-agent code-agent research-agent data-agent comm-agent vision-agent; do
+  [ -d "$HOME/.openclaw/agents/$id/workspace" ] && echo "tendril $id: present" || echo "tendril $id: absent"
+done
+
+# Nexus workspace files
+for f in AGENTS.md TOOLS.md IDENTITY.md LINEAR.md; do
+  [ -f "$HOME/.openclaw/workspace/$f" ] && echo "nexus $f: present ($(wc -c < $HOME/.openclaw/workspace/$f) bytes)" || echo "nexus $f: absent"
+done
+
+# Linear CLI + config
+[ -x "$HOME/.local/bin/linear-ticket" ] && echo "linear-ticket: present" || echo "linear-ticket: absent"
+[ -f "$HOME/.openclaw/linear.json" ] && echo "linear.json: present" || echo "linear.json: absent"
+
+# VECNA service
+[ -f "$HOME/.config/systemd/user/vecna.service" ] && echo "vecna.service: present" || echo "vecna.service: absent"
+
+# Node + MariaDB clients
+command -v node >/dev/null && node -v || echo "node: absent"
+command -v mariadb >/dev/null && echo "mariadb client: present" || echo "mariadb client: absent"
+command -v jq >/dev/null && echo "jq: present" || echo "jq: absent"
+command -v op >/dev/null && echo "op: present" || echo "op: absent"
 ```
 
-Model auth check — confirm at least one model is configured:
+### 0.3 Decide install mode
+
+- **greenfield** — none of the Tendril workspaces, the Nexus AGENTS.md, or `linear-ticket` exist. Run every phase in full.
+- **incremental** — one or more of the above are present. Proceed cautiously: back up before overlaying, and reuse existing personalisation where possible.
+
+Record the decision and the probe output. You'll cite both in the final report.
+
+---
+
+## Phase A — Prerequisites
+
+Run these checks. **Halt** if any fails.
 
 ```bash
-openclaw models list | head -5
+openclaw --version              # require ≥ 2026.5.7
+openclaw gateway status         # require Runtime: running
+command -v git    >/dev/null    # required
+command -v curl   >/dev/null    # required for the fallback clone path
+openclaw models list | head -5  # require ≥ 1 model configured
 ```
 
-If no model is configured, **stop**. Ask the operator to wire up at least one model (e.g., `ollama/kimi-k2.6:cloud`) before retrying.
+Soft checks (warn in the final report; don't halt):
 
-## Personalization questions — ask before changes
+```bash
+command -v jq >/dev/null        # nice to have for jq -r '.result.payloads[0].text' shortcuts
+command -v op >/dev/null        # only needed if storing Linear key in 1Password
+```
 
-Ask the operator the following before doing anything that writes to the host. If your runtime has an `AskUserQuestion` style tool, use it. Otherwise ask in chat and wait for answers.
+If any hard check fails, write a one-line explanation, emit the final report with `status: halted`, and stop.
 
-1. **Orchestrator name and emoji.**
-   The orchestrator is yourself. Default name suggestion: pick a playful one (e.g., "Conductor", "Maestro"). Default emoji: 🎼. The operator may already have an identity in their workspace `IDENTITY.md` — if so, reuse it and skip this question.
+---
 
-2. **Text-specialist model.**
-   Default: `ollama/kimi-k2.6:cloud`. Operator can override with anything they have auth for (e.g., `openai/gpt-4o`, `groq/moonshotai/kimi-k2-instruct-0905`, any Anthropic model).
+## Phase B — Personalisation (with defaults)
 
-3. **Vision-specialist model.**
-   Default: `ollama/kimi-k2.5:cloud`. Must be image-capable (text + image input). Anthropic vision-enabled models and `openai/gpt-4o` both work.
+If your runtime can ask the operator a quick question, ask. **If not, use the defaults below and proceed.** Never block the install on an unanswered question.
 
-4. **Linear ticket oversight (yes / no).**
-   If yes: ask for the operator's Linear workspace URL slug, team key (e.g., `ENG`), and how they want to store the API key (1Password ref vs `$LINEAR_API_KEY` in shell env). If 1Password: ask for the vault and item name they'd like to use. If no: skip Linear setup entirely (~/.openclaw/workspace/LINEAR.md is not installed and the orchestrator's AGENTS.md still works without tickets).
+| Question                    | Default if unanswered                                                                                                                                          | Where it's used                             |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| **Nexus name**              | If `~/.openclaw/workspace/IDENTITY.md` already has a name → reuse it. Else default to **"Conductor"**.                                                         | Nexus IDENTITY.md only (your own identity). |
+| **Nexus emoji**             | If existing IDENTITY.md has one → reuse. Else default to **🎼**.                                                                                               | Nexus IDENTITY.md.                          |
+| **Text-specialist model**   | First entry from `openclaw models list` that supports text. Falls back to `ollama/kimi-k2.6:cloud`.                                                            | `setup.sh` env vars.                        |
+| **Vision-specialist model** | First image-capable model from `openclaw models list`. Falls back to `ollama/kimi-k2.5:cloud`.                                                                 | `setup.sh` for `vision-agent`.              |
+| **Operator name**           | If `git config --get user.name` exists → use it. Else **"the operator"**.                                                                                      | Tendril IDENTITY.md files.                  |
+| **Operator email**          | If `git config --get user.email` exists → use it. Else **(omit)**.                                                                                             | Tendril IDENTITY.md files.                  |
+| **Linear oversight?**       | If `~/.openclaw/linear.json` already exists → **yes, reuse it.** Else if `$LINEAR_API_KEY` is set → **yes, env-var path.** Else **skip** (can be added later). | Phase D step 5.                             |
+| **VINES install?**          | If `node -v` ≥ v20 and MariaDB reachable via `$MARIADB_URL` → **yes.** Else **skip**.                                                                          | Phase D step 5.5.                           |
+| **VECNA install?**          | Same condition as VINES → **yes** (VECNA reuses the same MariaDB). Else **skip**.                                                                              | Phase D step 5.6.                           |
 
-5. **Operator identity for IDENTITY.md files.**
-   Operator's name and host (hostname + OS). Used to fill the templates so specialists know who they serve.
+If you do ask the operator, structure it as one consolidated question with all defaults pre-filled — never block six times in a row.
 
-6. **Confirm before proceeding.**
-   Summarize the plan back to the operator: "I will create 6 isolated agents under ~/.openclaw/agents/, overlay their AGENTS.md from the repo, install the orchestrator workspace docs, [optionally wire Linear], restart the gateway, and smoke-test. Proceed?" Wait for explicit yes.
+---
 
-## Installation steps
+## Phase C — Plan announcement
+
+Before any host change, write the plan to the operator (chat / stdout / log — wherever your output goes). Format:
+
+```
+openclaw-hawkins install plan
+  mode:        <greenfield | incremental>
+  clone:       $HOME/openclaw-hawkins  (action: clone | pull)
+  tendrils:    system code research data comm vision  (action: create | skip-existing)
+  nexus:       AGENTS.md TOOLS.md IDENTITY.md  (action: install | overlay-with-backup)
+  linear:      <yes-reuse | yes-env-var | skip>
+  vines:       <yes | skip>  (db: <host>:<port>/<db>)
+  vecna:       <yes | skip>  (port: 8765, systemd user service)
+  models:      text=<…>  vision=<…>
+  defaults:    <list of personalisation values being used>
+```
+
+This is for the audit trail — don't wait for an ack. Proceed to Phase D immediately.
+
+---
+
+## Phase D — Install steps
+
+Each step follows **DETECT → ACT → VERIFY**. If VERIFY fails, the recovery path is documented inline. If recovery doesn't restore the step, halt and report.
 
 ### Step 1 — clone or update the repo
 
+**DETECT**
+
 ```bash
 REPO_DIR="${HOME}/openclaw-hawkins"
-if [ -d "$REPO_DIR/.git" ]; then
+test -d "$REPO_DIR/.git" && existed=true || existed=false
+```
+
+**ACT**
+
+```bash
+if $existed; then
   git -C "$REPO_DIR" pull --rebase --ff-only
 else
   git clone https://github.com/parijatmukherjee/openclaw-hawkins.git "$REPO_DIR"
 fi
 ```
 
-### Step 2 — run the bootstrap script
+**VERIFY**
+
+```bash
+test -f "$REPO_DIR/README.md" && test -d "$REPO_DIR/agents" && test -f "$REPO_DIR/scripts/setup.sh" \
+  && echo "repo ok" || { echo "repo verify failed"; exit 1; }
+```
+
+**Recovery:** If clone fails (network), retry once with `--depth 1`. If still failing, halt.
+
+---
+
+### Step 2 — create the six Tendrils
+
+**DETECT**
+
+```bash
+for id in system-agent code-agent research-agent data-agent comm-agent vision-agent; do
+  test -d "$HOME/.openclaw/agents/$id/workspace" && echo "$id: exists" || echo "$id: missing"
+done
+```
+
+**ACT**
+
+For each Tendril that exists, **back up its current AGENTS.md before any overlay**:
+
+```bash
+ts=$(date +%s)
+for id in system-agent code-agent research-agent data-agent comm-agent vision-agent; do
+  target="$HOME/.openclaw/agents/$id/workspace/AGENTS.md"
+  test -f "$target" && cp "$target" "$target.bak.$ts"
+done
+```
+
+Then run the bootstrap (idempotent — skips existing workspaces, overlays AGENTS.md):
 
 ```bash
 cd "$REPO_DIR"
@@ -100,245 +240,445 @@ OPENCLAW_ORCHESTRA_VISION_MODEL="<chosen-vision-model>" \
   ./scripts/setup.sh
 ```
 
-This creates the 6 specialist agents (idempotent — skips agents that already exist) and overlays each one's `AGENTS.md`. It does **not** touch `IDENTITY.md` or the orchestrator's workspace.
+Replace `<chosen-text-model>` and `<chosen-vision-model>` with the values from Phase B. If you didn't pick (because `openclaw models list` returned nothing parseable), use the spec defaults.
 
-### Step 3 — personalize each specialist's IDENTITY.md
-
-For each specialist:
+**VERIFY**
 
 ```bash
-cp "$REPO_DIR/agents/<id>/IDENTITY.md.template" \
-   "$HOME/.openclaw/agents/<id>/workspace/IDENTITY.md"
+for id in system-agent code-agent research-agent data-agent comm-agent vision-agent; do
+  test -f "$HOME/.openclaw/agents/$id/workspace/AGENTS.md" \
+    && grep -q "Tendril of the Hive" "$HOME/.openclaw/agents/$id/workspace/AGENTS.md" \
+    && echo "$id ok" || echo "$id NOT ok"
+done
 ```
 
-Then edit each file to fill in the operator's name, email, and host. Either:
+Every Tendril must have an `AGENTS.md` _and_ it must contain the upstream "Tendril of the Hive" footer (proves the overlay landed).
 
-- Do it programmatically using the answers from question 5 above (preferred — use `sed` or write the file directly), or
-- Ask the operator to do it manually.
+**Recovery:** If a Tendril fails verification, re-copy `$REPO_DIR/agents/$id/AGENTS.md` to the workspace and retry. If still failing, halt.
 
-Show the operator a confirmation diff if you edit programmatically.
+---
 
-### Step 4 — install the orchestrator's workspace files
+### Step 3 — Tendril identities
+
+**DETECT**
 
 ```bash
-cp "$REPO_DIR/orchestrator/AGENTS.md" \
-   "$HOME/.openclaw/workspace/AGENTS.md"
-
-cp "$REPO_DIR/orchestrator/TOOLS.md.template" \
-   "$HOME/.openclaw/workspace/TOOLS.md"
-
-cp "$REPO_DIR/orchestrator/IDENTITY.md.template" \
-   "$HOME/.openclaw/workspace/IDENTITY.md"
+for id in system-agent code-agent research-agent data-agent comm-agent vision-agent; do
+  test -f "$HOME/.openclaw/agents/$id/workspace/IDENTITY.md" && echo "$id: customised" || echo "$id: missing"
+done
 ```
 
-Then edit `~/.openclaw/workspace/TOOLS.md` and `~/.openclaw/workspace/IDENTITY.md` with the operator's specifics (host, model choices, orchestrator name/vibe/emoji from question 1).
+**ACT**
 
-**Important:** if the operator already has an existing `~/.openclaw/workspace/AGENTS.md` or `TOOLS.md`, **do not overwrite blindly.** Show them the diff and ask whether to merge, replace, or skip.
-
-### Step 5 — optional: wire Linear (only if operator said yes)
+- **If a Tendril's IDENTITY.md already exists**, leave it alone. The operator (or a previous install) has customised it; preserve their work.
+- **If it's missing**, copy the template and substitute the operator-name / operator-email values from Phase B:
 
 ```bash
+ts=$(date +%s)
+NAME="<operator-name-from-Phase-B>"
+EMAIL="<operator-email-from-Phase-B-or-empty>"
+HOSTNAME="$(hostname)"
+OS="$(uname -s) $(uname -r)"
+for id in system-agent code-agent research-agent data-agent comm-agent vision-agent; do
+  src="$REPO_DIR/agents/$id/IDENTITY.md.template"
+  dst="$HOME/.openclaw/agents/$id/workspace/IDENTITY.md"
+  test -f "$dst" && cp "$dst" "$dst.bak.$ts"
+  sed \
+    -e "s|<OPERATOR_NAME>|$NAME|g" \
+    -e "s|<OPERATOR_EMAIL>|$EMAIL|g" \
+    -e "s|<HOSTNAME>|$HOSTNAME|g" \
+    -e "s|<OS>|$OS|g" \
+    "$src" > "$dst"
+done
+```
+
+(If the template doesn't have those placeholder tokens, leave the file as-is — the defaults in the template are themselves usable.)
+
+**VERIFY**
+
+```bash
+for id in system-agent code-agent research-agent data-agent comm-agent vision-agent; do
+  test -f "$HOME/.openclaw/agents/$id/workspace/IDENTITY.md" && echo "$id ok" || echo "$id NOT ok"
+done
+```
+
+---
+
+### Step 4 — Nexus workspace files (the orchestrator's own AGENTS.md / TOOLS.md / IDENTITY.md)
+
+**DETECT**
+
+```bash
+for f in AGENTS.md TOOLS.md IDENTITY.md; do
+  test -f "$HOME/.openclaw/workspace/$f" && echo "$f: present" || echo "$f: absent"
+done
+```
+
+**ACT**
+
+For each of the three files:
+
+- **If absent**, copy the template / canonical file from the repo:
+  - `AGENTS.md` ← `$REPO_DIR/orchestrator/AGENTS.md` (drop-in as-is)
+  - `TOOLS.md` ← `$REPO_DIR/orchestrator/TOOLS.md.template` (template — substitute host info)
+  - `IDENTITY.md` ← `$REPO_DIR/orchestrator/IDENTITY.md.template` (template — substitute Nexus name/emoji + operator info)
+- **If present**, **back up first** (`*.bak.<ts>`) and overlay only `AGENTS.md`. Leave the operator's `TOOLS.md` and `IDENTITY.md` alone — they have host-specific edits.
+
+```bash
+ts=$(date +%s)
+mkdir -p "$HOME/.openclaw/workspace"
+
+# AGENTS.md — always overlay (the upstream protocol must be current)
+test -f "$HOME/.openclaw/workspace/AGENTS.md" \
+  && cp "$HOME/.openclaw/workspace/AGENTS.md" "$HOME/.openclaw/workspace/AGENTS.md.bak.$ts"
+cp "$REPO_DIR/orchestrator/AGENTS.md" "$HOME/.openclaw/workspace/AGENTS.md"
+
+# TOOLS.md — install only if absent
+test -f "$HOME/.openclaw/workspace/TOOLS.md" \
+  || cp "$REPO_DIR/orchestrator/TOOLS.md.template" "$HOME/.openclaw/workspace/TOOLS.md"
+
+# IDENTITY.md — install only if absent
+test -f "$HOME/.openclaw/workspace/IDENTITY.md" \
+  || cp "$REPO_DIR/orchestrator/IDENTITY.md.template" "$HOME/.openclaw/workspace/IDENTITY.md"
+```
+
+If `IDENTITY.md` was just installed from the template and Phase B picked defaults (Nexus name = "Conductor", emoji = 🎼), apply them now:
+
+```bash
+sed -i \
+  -e "s|<NEXUS_NAME>|Conductor|g" \
+  -e "s|<NEXUS_EMOJI>|🎼|g" \
+  -e "s|<OPERATOR_NAME>|<operator-name>|g" \
+  "$HOME/.openclaw/workspace/IDENTITY.md"
+```
+
+**VERIFY**
+
+```bash
+test -f "$HOME/.openclaw/workspace/AGENTS.md" \
+  && grep -q "openclaw-hawkins\|The Nexus\|Tendrils" "$HOME/.openclaw/workspace/AGENTS.md" \
+  && echo "nexus AGENTS.md ok" || echo "nexus AGENTS.md NOT ok"
+```
+
+---
+
+### Step 5 — Linear oversight (optional)
+
+**DETECT**
+
+```bash
+[ -x "$HOME/.local/bin/linear-ticket" ] && [ -f "$HOME/.openclaw/linear.json" ] && existed=true || existed=false
+```
+
+**ACT — install path (`existed=false`, operator wants Linear)**
+
+```bash
+ts=$(date +%s)
+mkdir -p "$HOME/.local/bin"
+
+# CLI binary — always overlay (the upstream version is the canonical one)
+test -f "$HOME/.local/bin/linear-ticket" \
+  && cp "$HOME/.local/bin/linear-ticket" "$HOME/.local/bin/linear-ticket.bak.$ts"
 cp "$REPO_DIR/tools/linear-ticket" "$HOME/.local/bin/linear-ticket"
 chmod +x "$HOME/.local/bin/linear-ticket"
-cp "$REPO_DIR/tools/linear.json.template" "$HOME/.openclaw/linear.json"
+
+# linear.json — only if absent (operator's team UUIDs are unique to them)
+test -f "$HOME/.openclaw/linear.json" \
+  || cp "$REPO_DIR/tools/linear.json.template" "$HOME/.openclaw/linear.json"
+
+# Linear protocol doc into the Nexus workspace
+test -f "$HOME/.openclaw/workspace/LINEAR.md" \
+  && cp "$HOME/.openclaw/workspace/LINEAR.md" "$HOME/.openclaw/workspace/LINEAR.md.bak.$ts"
 cp "$REPO_DIR/orchestrator/LINEAR.md" "$HOME/.openclaw/workspace/LINEAR.md"
 ```
 
-Then fetch the operator's Linear team metadata via the GraphQL API:
+If `linear.json` was _just installed_ from the template, you'll need to fill in:
+
+- `workspace_url_key` (the slug from `linear.app/<slug>`)
+- `team_id`, `team_key`, `team_name`
+- The seven workflow state UUIDs
+
+Fetch them via GraphQL using `$LINEAR_API_KEY` (the operator should have set this; if not, **halt with a clear message** explaining where to get an API token from `linear.app/settings/api`):
 
 ```bash
-curl -s -X POST https://api.linear.app/graphql \
-  -H "Authorization: <operator-supplied-lin_api_key>" \
+curl -fsS -X POST https://api.linear.app/graphql \
+  -H "Authorization: $LINEAR_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"query":"{ teams { nodes { id key name states { nodes { id name type } } } } organization { urlKey } }"}'
+  -d '{"query":"{ teams { nodes { id key name states { nodes { id name type } } } } organization { urlKey } }"}' \
+  | jq '.data'
 ```
 
-Parse the response and populate `~/.openclaw/linear.json` with:
+Pick the first team if there's only one; otherwise prefer one whose `key` matches the operator's `git config user.email` domain, or halt and ask. Write the resulting object to `~/.openclaw/linear.json`.
 
-- `workspace_url_key` from `organization.urlKey`
-- `team_id`, `team_key`, `team_name` from the operator's chosen team
-- The seven state UUIDs in `states.{backlog, todo, in_progress, in_review, done, canceled, duplicate}`
+**ACT — reuse path (`existed=true`)**
 
-For the API key:
-
-- **If 1Password:** create an item, then set `api_key_secret_ref` in `linear.json` to the `op://...` reference.
-- **If env var:** ensure `LINEAR_API_KEY` is set in the operator's shell init (`~/.bashrc` / `~/.zshrc`) or in the gateway's systemd unit `EnvironmentFile=`.
-
-Smoke-test Linear:
+Operator already has Linear configured. Update only what's stale:
 
 ```bash
-linear-ticket list --limit 5
+ts=$(date +%s)
+
+# Upgrade linear-ticket to the upstream version (it's a strict superset).
+cp "$HOME/.local/bin/linear-ticket" "$HOME/.local/bin/linear-ticket.bak.$ts"
+cp "$REPO_DIR/tools/linear-ticket" "$HOME/.local/bin/linear-ticket"
+chmod +x "$HOME/.local/bin/linear-ticket"
+
+# Overlay the LINEAR.md protocol doc into the Nexus workspace (with backup).
+test -f "$HOME/.openclaw/workspace/LINEAR.md" \
+  && cp "$HOME/.openclaw/workspace/LINEAR.md" "$HOME/.openclaw/workspace/LINEAR.md.bak.$ts"
+cp "$REPO_DIR/orchestrator/LINEAR.md" "$HOME/.openclaw/workspace/LINEAR.md"
+
+# Leave ~/.openclaw/linear.json untouched — it has the operator's team UUIDs.
 ```
 
-### Step 5.5 — optional: install VINES (durable orchestration layer)
-
-If the operator wants the protocol to survive crashes and use the `vines/spec.md` activation gate, install the VINES Node library. **Ask first** — it adds a MariaDB dependency.
-
-Prerequisites:
-
-- Node ≥ 20 (`node -v`).
-- MariaDB server reachable from this host. The operator can use a local server (`apt install mariadb-server`) or a cloud instance.
-
-Have the operator (or their DBA) run:
-
-```sql
-CREATE DATABASE orchestra CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER 'orchestra'@'%' IDENTIFIED BY '<a-strong-password>';
-GRANT INSERT, SELECT, UPDATE, DELETE ON orchestra.* TO 'orchestra'@'%';
-FLUSH PRIVILEGES;
-```
-
-Then build and bootstrap the schema:
+**VERIFY**
 
 ```bash
-cd "$REPO_DIR"
-npm ci                  # or `make install`
-npm run build           # or `make build`
-export MARIADB_URL=mariadb://<host>:3306/orchestra
-export MARIADB_USER=orchestra
-export MARIADB_PASSWORD=<password>     # store via 1Password if available
-export LINEAR_API_KEY=<lin_api_…>
-make bootstrap-db       # or: npx vines init-db
+$HOME/.local/bin/linear-ticket list --limit 1 >/dev/null && echo "linear ok" || echo "linear NOT ok"
 ```
 
-Smoke-test:
+Recovery: if `list` fails with `op read failed`, the operator's 1Password isn't loaded — surface that in the report and continue. If it fails with `401`, the API key is wrong — log and continue (Linear is optional).
+
+---
+
+### Step 5.5 — VINES (durable orchestration state, optional)
+
+**DETECT**
 
 ```bash
-npx vines status                           # → "(ledger empty)"
-npx vines triage --seconds 60              # → {"activate": true, ...}
-npx vines recover                          # → {"unfinishedTotal": 0, ...}
+node -v 2>/dev/null   # need ≥ v20
+test -n "${MARIADB_URL:-}" && test -n "${MARIADB_USER:-}" && test -n "${MARIADB_PASSWORD:-}" \
+  && have_db_env=true || have_db_env=false
 ```
 
-If any of these fail, **stop and ask the operator** — never blindly retry. The full integration recipe is in `INSTALL.md §9`.
+If `have_db_env=false`, **skip** Step 5.5 and Step 5.6. Note in the report that VINES + VECNA were skipped due to missing env.
 
-### Step 5.6 — optional: install VECNA (Hive knowledge-sharing service)
-
-If the operator wants the swarm to **remember across orchestrations** (not just survive crashes), install VECNA. It reuses the MariaDB instance from Step 5.5; no new database needed.
-
-**Ask first.** VECNA adds a long-lived HTTP service the operator has to keep running. Useful but optional.
-
-If yes:
+**ACT**
 
 ```bash
 cd "$REPO_DIR"
-# Schema (uses the same MariaDB you bootstrapped for VINES)
+# Install + build (idempotent)
+npm ci --no-audit --no-fund
+npm run build
+# Apply the schema (idempotent — CREATE TABLE IF NOT EXISTS)
+make bootstrap-vines-db
+```
+
+**VERIFY**
+
+```bash
+node dist/cli.js status     >/dev/null && echo "vines status ok"     || echo "vines status NOT ok"
+node dist/cli.js triage --seconds 60 >/dev/null && echo "vines triage ok"     || echo "vines triage NOT ok"
+node dist/cli.js recover    >/dev/null && echo "vines recover ok"    || echo "vines recover NOT ok"
+```
+
+All three must succeed. If any fail, capture the error message into the report and halt VINES install (the rest of the install continues).
+
+---
+
+### Step 5.6 — VECNA (Hive knowledge sharing, optional)
+
+Activation condition: same as 5.5 (Node ≥ 20 + MariaDB env). Skip otherwise.
+
+**DETECT**
+
+```bash
+test -f "$HOME/.config/systemd/user/vecna.service" && existed=true || existed=false
+```
+
+**ACT**
+
+```bash
+cd "$REPO_DIR"
+# Apply schema (idempotent)
 make bootstrap-vecna-db
 
-# Pick a port + (recommended) an auth token if VECNA_HOST != 127.0.0.1
-export VECNA_PORT=8765
-# export VECNA_AUTH_TOKEN=<random-32-byte-hex>     # only if exposing beyond loopback
-export VECNA_URL="http://127.0.0.1:${VECNA_PORT}"
+# Pick a port (default 8765; override if it's already taken)
+VECNA_PORT=8765
+ss -tnlp 2>/dev/null | awk '{print $4}' | grep -q ":$VECNA_PORT$" && VECNA_PORT=18765
 
-# Start the Nexus as a systemd user service
-mkdir -p ~/.config/systemd/user ~/.config/openclaw-hawkins
-cp "$REPO_DIR/examples/vecna.service" ~/.config/systemd/user/vecna.service
-cat > ~/.config/openclaw-hawkins/vecna.env <<EOF
-MARIADB_URL=${MARIADB_URL}
-MARIADB_USER=${MARIADB_USER}
-MARIADB_PASSWORD=${MARIADB_PASSWORD}
+# Write the env file (0600) — never check into git
+mkdir -p "$HOME/.config/openclaw-hawkins"
+umask 077
+cat > "$HOME/.config/openclaw-hawkins/vecna.env" <<EOF
+MARIADB_URL=$MARIADB_URL
+MARIADB_USER=$MARIADB_USER
+MARIADB_PASSWORD=$MARIADB_PASSWORD
 MARIADB_SSL=${MARIADB_SSL:-preferred}
-VECNA_PORT=${VECNA_PORT}
-VECNA_URL=${VECNA_URL}
+VECNA_PORT=$VECNA_PORT
+VECNA_URL=http://127.0.0.1:$VECNA_PORT
 EOF
-chmod 600 ~/.config/openclaw-hawkins/vecna.env
+chmod 600 "$HOME/.config/openclaw-hawkins/vecna.env"
 
-# Edit ~/.config/systemd/user/vecna.service so WorkingDirectory + ExecStart
-# point at the operator's actual clone (default assumes $HOME/openclaw-hawkins).
+# Install the systemd user unit
+mkdir -p "$HOME/.config/systemd/user"
+sed \
+  -e "s|%h/openclaw-hawkins|$HOME/openclaw-hawkins|g" \
+  "$REPO_DIR/examples/vecna.service" > "$HOME/.config/systemd/user/vecna.service"
 
 systemctl --user daemon-reload
 systemctl --user enable --now vecna.service
-sleep 2
+sleep 3
 ```
 
-Smoke-test:
+**VERIFY**
 
 ```bash
-npx vecna healthz     # → {"ok":true,"db":"up","version":"..."}
+export VECNA_URL=http://127.0.0.1:$VECNA_PORT
+node dist/hive/cli.js healthz | jq -e '.ok == true and .db == "up"' \
+  && echo "vecna ok" || { echo "vecna NOT ok"; journalctl --user -u vecna.service -n 30; }
 ```
 
-If healthz fails, **stop**. Check `journalctl --user -u vecna.service` and ask the operator before retrying. Full recipe: `INSTALL.md §10`.
+Recovery: if healthz returns `db: down`, the env file likely has wrong `MARIADB_URL`. Surface the error and journalctl tail in the report.
+
+---
 
 ### Step 6 — restart the gateway
+
+**ACT**
 
 ```bash
 openclaw gateway restart
 sleep 3
-openclaw gateway status   # confirm Runtime: running, Connectivity probe: ok
 ```
 
-### Step 7 — smoke-test the specialists
+**VERIFY**
 
-Run a one-line introduction prompt against each specialist:
+```bash
+openclaw gateway status | grep -q "Runtime: running" && echo "gateway ok" || echo "gateway NOT ok"
+```
+
+Recovery: if not running, run `openclaw config validate` and surface the output. Halt.
+
+---
+
+### Step 7 — Tendril smoke tests
+
+**ACT + VERIFY** (combined — the verification _is_ the smoke test)
 
 ```bash
 for id in system-agent code-agent research-agent data-agent comm-agent vision-agent; do
+  reply=$(openclaw agent --agent "$id" \
+            --message "Introduce yourself in one sentence. Include your role and one rule you follow." \
+            --json --timeout 30 \
+          | jq -r '.result.payloads[0].text')
   echo "=== $id ==="
-  openclaw agent --agent "$id" \
-    --message "Introduce yourself in one sentence. Include your role and one rule you follow." \
-    --json --timeout 30 \
-    | jq -r '.result.payloads[0].text'
+  echo "$reply"
+  # Heuristic check: reply mentions its own id or a rule from its AGENTS.md
+  echo "$reply" | grep -qiE "$id|specialist|tendril|rule" && echo "$id: ok" || echo "$id: weak"
 done
 ```
 
-Each should:
+A "weak" reply isn't a hard fail (model variation happens), but it's a signal to the operator that the Tendril's AGENTS.md / IDENTITY.md may not be loading. Record the actual replies in the report so the operator can judge.
 
-- Identify itself by its name (system-agent, code-agent, etc.)
-- State its role
-- Cite one rule from its AGENTS.md
+---
 
-If any specialist returns a generic "I am an AI" response, the AGENTS.md or IDENTITY.md wasn't loaded — check the workspace files exist and the gateway was restarted.
+### Step 8 — end-to-end Nexus dispatch test
 
-### Step 8 — end-to-end test (orchestrator dispatching)
-
-Have the orchestrator dispatch to a specialist on its own initiative. From the operator's side or via `openclaw agent --agent main`:
+**ACT + VERIFY**
 
 ```bash
 openclaw agent --agent main \
-  --message "Please ask system-agent to report the current disk usage on the root filesystem. Synthesize the answer for me." \
+  --message "Please ask system-agent to report the current disk usage on /. Synthesize the answer for me." \
   --json --timeout 120 \
-  | jq -r '.result.payloads[0].text'
+  | jq -r '.result.payloads[0].text' \
+  | tee /tmp/openclaw-hawkins-e2e.txt
 ```
 
-Expected: the orchestrator acknowledges, dispatches to system-agent via exec, parses the reply, and returns a synthesized one-paragraph answer in its own voice.
+A successful run will:
 
-If the orchestrator doesn't recognize the dispatch pattern, re-check that `~/.openclaw/workspace/AGENTS.md` contains the openclaw-hawkins content (especially the "How to dispatch" section).
+- Acknowledge the operator
+- Dispatch via `exec`
+- Return a synthesized one-paragraph reply with the disk usage
 
-## Reporting back to the operator
+If the Nexus replies without dispatching (e.g., "I would suggest you run df -h"), the `AGENTS.md` content from Step 4 didn't take effect — re-verify Step 4 and Step 6.
 
-When done, give the operator:
+---
 
-1. **What was created** — list of the 6 agent workspaces created, with paths
-2. **What was overlaid** — the workspace files installed and any pre-existing files preserved
-3. **Linear status** — if wired, the Linear workspace URL; if skipped, note it can be added later
-4. **Verification results** — pass/fail for each smoke-test
-5. **Known follow-ups** — any prerequisites that were soft-missing (e.g., `jq` not installed, version mismatch warnings)
-6. **A sample dispatch the operator can try** — give them a one-liner they can paste to test the system
+## Phase E — Final report
 
-## Failure modes
+When done (success **or** halt), emit a report. Use this structure:
 
-| Failure                                      | Cause                                                      | Fix                                                              |
-| -------------------------------------------- | ---------------------------------------------------------- | ---------------------------------------------------------------- |
-| `openclaw agent --agent <id>` not recognized | OpenClaw < 2026.5.7                                        | Tell operator to upgrade                                         |
-| Specialist returns generic identity          | BOOTSTRAP.md still present in workspace                    | `rm ~/.openclaw/agents/<id>/workspace/BOOTSTRAP.md`              |
-| Specialist times out                         | Default --timeout too low for model latency                | Re-run with longer --timeout                                     |
-| Linear `op read` fails                       | 1Password service-account token not loaded                 | Operator must source the token file in shell env or systemd unit |
-| Gateway won't restart                        | Existing openclaw.json invalid after operator manual edits | `openclaw config validate` to find the issue                     |
-| Vision-agent can't process images            | Assigned model is text-only                                | Swap to `ollama/kimi-k2.5:cloud` or another vision-capable model |
+```
+═══ openclaw-hawkins install report ═══
+
+  status:           <ok | partial | halted>
+  install mode:     <greenfield | incremental>
+  host:             <hostname>  <os>
+  duration:         <seconds>
+
+  ── what was created ──
+  repo:             $HOME/openclaw-hawkins                <created | updated>
+  tendrils:         system-agent, code-agent, …            <created | skipped-existing>
+  nexus workspace:  AGENTS.md, TOOLS.md, IDENTITY.md       <installed | overlaid-with-backup>
+
+  ── what was overlaid (backups saved) ──
+  <list every .bak.<ts> file you created, full path>
+
+  ── optional add-ons ──
+  linear:   <yes (workspace=<slug>) | reused | skipped-missing-env | skipped-failed>
+  vines:    <yes (db=<host>/<dbname>) | skipped-missing-env | skipped-failed>
+  vecna:    <yes (systemd: vecna.service on port <n>) | skipped-… | skipped-…>
+
+  ── verification ──
+  gateway:          <running | NOT running>
+  tendril probes:   N/6 ok
+  nexus dispatch:   <ok | weak | failed>
+  vines status:     <ok | n/a>
+  vecna healthz:    <ok | n/a>
+
+  ── soft-missing prerequisites ──
+  <list anything from Phase A soft-check that wasn't satisfied — jq, op, etc.>
+
+  ── next steps for the operator ──
+  <one-paragraph plain-English summary of what works now>
+  <if any halts: what they need to fix, with a copy-paste-able command>
+
+  ── try it ──
+  openclaw agent --agent main --message "What can you do?" --json --timeout 30 | jq -r '.result.payloads[0].text'
+
+  ── revert (if you don't like what landed) ──
+  All overwritten files were saved at <path>.bak.<unix-ts> alongside the
+  originals. Restore with:  mv <path>.bak.<ts> <path>
+```
+
+---
+
+## Failure modes & recovery
+
+| Failure                                      | Cause                                               | Recovery                                                                                                                                                                |
+| -------------------------------------------- | --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `openclaw agent --agent <id>` not recognised | OpenClaw < 2026.5.7                                 | Tell the operator to upgrade. Halt.                                                                                                                                     |
+| Specialist returns a generic identity        | `BOOTSTRAP.md` still present in workspace           | `rm ~/.openclaw/agents/<id>/workspace/BOOTSTRAP.md`, then re-run Step 7 for that id                                                                                     |
+| Specialist times out                         | Default `--timeout 30` too low for model latency    | Retry with `--timeout 120`. If still slow, model is unhealthy — report.                                                                                                 |
+| `linear-ticket: op read failed`              | 1Password service-account token not loaded          | The operator must source the token file. Report; continue (Linear is optional).                                                                                         |
+| Linear `401`                                 | Bad API key                                         | Report; continue (Linear is optional).                                                                                                                                  |
+| Gateway won't restart                        | `openclaw.json` invalid after operator manual edits | `openclaw config validate` to surface the issue. Halt; do not proceed.                                                                                                  |
+| Vision-agent can't process images            | Assigned model is text-only                         | Swap to `ollama/kimi-k2.5:cloud` or another vision-capable model. Phase B should have picked one; if it didn't, log and continue (vision is the least common dispatch). |
+| Schema bootstrap fails with "Access denied"  | DB user lacks `CREATE TABLE` privilege              | Report the exact GRANT the user needs. Halt VINES/VECNA install; rest continues.                                                                                        |
+| `vecna healthz` returns `db: down`           | `vecna.env` has wrong `MARIADB_URL`                 | Read `journalctl --user -u vecna.service -n 30` and report. Continue (VECNA is optional).                                                                               |
+| Port already in use for VECNA                | Another service on 8765                             | Already handled in Step 5.6 — picks 18765 as fallback. If both taken, halt VECNA install.                                                                               |
+
+---
 
 ## Do NOT do
 
-- Overwrite the operator's existing `~/.openclaw/workspace/AGENTS.md` without showing them a diff and confirming.
-- Skip the personalization questions to save time. The operator should know what's about to happen.
-- Commit secrets (Linear API key, 1Password tokens) into any file under version control.
-- Run `openclaw agents delete` for existing agents. If a name collision exists, ask the operator first.
-- Disable existing skills the operator already has installed.
+- **Don't `openclaw agents delete` an existing agent.** If a name collision exists, you've already detected it in Phase 0 — back up the workspace AGENTS.md and proceed with overlay; never delete.
+- **Don't disable existing skills the operator has installed.** You don't own them.
+- **Don't commit secrets** (Linear API key, 1Password tokens, `vecna.env`) into any file under version control.
+- **Don't kill running OpenClaw sessions.** The gateway restart at Step 6 is the only interruption you cause.
+- **Don't overlay `linear.json`.** It contains the operator's team UUIDs which are unique to them.
+- **Don't overlay `IDENTITY.md` files that already exist.** Customisation is the operator's; preserve it.
+
+---
 
 ## After installation
 
 Point the operator at:
 
-- `~/.openclaw/workspace/AGENTS.md` — full architecture and dispatch protocol
+- `~/.openclaw/workspace/AGENTS.md` — full architecture + the Pulse protocol
 - `~/.openclaw/workspace/LINEAR.md` (if installed) — ticket lifecycle
-- `https://github.com/parijatmukherjee/openclaw-hawkins/blob/main/INSTALL.md` — deeper customization
+- `https://github.com/parijatmukherjee/openclaw-hawkins/blob/main/INSTALL.md` — deeper customisation
+- `https://github.com/parijatmukherjee/openclaw-hawkins/blob/main/docs/branding.md` — the Hive-Mind vocabulary
+- `https://github.com/parijatmukherjee/openclaw-hawkins/blob/main/docs/pulse-protocol.md` — the workflow phases
 
-The orchestrator picks up the new AGENTS.md on its next session. From then on, when the operator asks for something non-trivial, the orchestrator should acknowledge + dispatch + synthesize.
+The Nexus picks up the new `AGENTS.md` on its next session. From then on, when the operator asks for something non-trivial, the Nexus should acknowledge + dispatch + synthesize.
