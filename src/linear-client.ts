@@ -1,5 +1,5 @@
 /**
- * Minimal Linear GraphQL client for ASO.
+ * Minimal Linear GraphQL client for VINES.
  *
  * Two responsibilities:
  *   1. Mutations during the §3.2 workflow (create parent / child, comment,

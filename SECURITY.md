@@ -2,7 +2,7 @@
 
 ## Reporting a vulnerability
 
-If you find a security issue in `openclaw-orchestra`, please **do not open a
+If you find a security issue in `openclaw-hawkins`, please **do not open a
 public GitHub issue**. Instead, email the maintainer at the address in
 [`package.json`](package.json) with:
 
@@ -23,7 +23,7 @@ Dependabot.
 
 The following are in scope for security reports:
 
-- The ASO Node library (`src/`).
+- The VINES Node library (`src/`).
 - The bundled bash helpers (`scripts/`).
 - The schema and operator docs as far as they could trick an operator into a
   dangerous default.
@@ -35,10 +35,10 @@ The following are **out of scope** but always welcome as regular issues:
 - Linear / MariaDB themselves. Report vulnerabilities to their respective
   vendors.
 
-## Threat model — what ASO defends against
+## Threat model — what VINES defends against
 
 - **Credential exposure.** The library never logs the `MARIADB_PASSWORD` or
-  `LINEAR_API_KEY`. The `aso recover` JSON output redacts everything by
+  `LINEAR_API_KEY`. The `vines recover` JSON output redacts everything by
   design — it includes Linear identifiers, not tokens.
 - **SQL injection.** All queries use parameter binding. Never call
   `conn.query()` with string concatenation in a contribution.
@@ -46,9 +46,9 @@ The following are **out of scope** but always welcome as regular issues:
   flags and surfaces failures as `RuntimeError`. The recovery scan tolerates
   malformed or partial responses without crashing the orchestrator.
 
-## What ASO does **not** defend against
+## What VINES does **not** defend against
 
-- **Compromised OpenClaw host.** If the host running ASO is compromised, the
+- **Compromised OpenClaw host.** If the host running VINES is compromised, the
   attacker can read the env vars. Mitigation lives at the OpenClaw level
   (secrets backend, sandboxing).
 - **Compromised Linear or MariaDB credentials.** Rotate them and consider

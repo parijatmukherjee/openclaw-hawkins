@@ -1,4 +1,4 @@
-# openclaw-orchestra — operator + developer Makefile.
+# openclaw-hawkins — operator + developer Makefile.
 # Thin wrapper over npm scripts so adopters get a consistent surface even
 # without remembering the npm script names. Run `make help` for the catalog.
 
@@ -78,11 +78,11 @@ setup-agents: ## Create the 6 OpenClaw specialist agents on this host.
 	./scripts/setup.sh
 
 .PHONY: bootstrap-db
-bootstrap-db: ## Apply aso/schema.sql via the configured MARIADB_URL.
-	./scripts/bootstrap-aso-db.sh
+bootstrap-db: ## Apply vines/schema.sql via the configured MARIADB_URL.
+	./scripts/bootstrap-vines-db.sh
 
 .PHONY: init-db
-init-db: build ## Apply aso/schema.sql via the Node CLI (alternative to bootstrap-db).
+init-db: build ## Apply vines/schema.sql via the Node CLI (alternative to bootstrap-db).
 	node dist/cli.js init-db
 
 ## ----------------------------------------------------------------------------

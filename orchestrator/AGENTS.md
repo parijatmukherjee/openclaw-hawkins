@@ -175,35 +175,35 @@ If no specialist fits the task:
 
 If you've configured Linear integration ([see LINEAR.md](LINEAR.md)), wrap each non-trivial dispatch in a ticket lifecycle: parent ticket per operator request, sub-ticket per specialist dispatch, comment with the reply, state Done when complete. Skip tickets for trivial inline-handled requests (≤30s) so the board doesn't fill with noise.
 
-## Optional: durable state via the ASO library
+## Optional: durable state via the VINES library
 
-If the operator installed [ASO](../aso/spec.md) (the Node/TypeScript library bundled in this repo), drive it through the `aso` CLI from your `exec` tool. You don't need to write or import any Node code — the CLI is the integration surface.
+If the operator installed [VINES](../vines/spec.md) (the Node/TypeScript library bundled in this repo), drive it through the `vines` CLI from your `exec` tool. You don't need to write or import any Node code — the CLI is the integration surface.
 
 The five commands you'll use, mapped to the spec §3.2 protocol:
 
 | Step                           | Command                                                                                             | Purpose                                                                                                                                |
 | ------------------------------ | --------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| 3.1 — triage                   | `aso triage --seconds <n> --domain <id> [--domain <id> …]`                                          | Returns `{"activate": bool, "reason": "..."}`. If false, handle inline and stop.                                                       |
-| 3.2 step 2 — create ledger row | `aso start --objective "..." [--linear-parent <ENG-N>] [--state planning]`                          | Prints the orchestration UUID on stdout. Capture it: `ORCH=$(aso start …)`                                                             |
-| 3.2 step 5 — transition        | `aso set-state <orchestration-id> <init\|planning\|executing\|success\|failed> [--last-agent <id>]` | Move the orchestration through its lifecycle.                                                                                          |
-| (post-hoc) — link Linear later | `aso attach-linear-parent <orchestration-id> <ENG-N>`                                               | If you started the row before the Linear ticket existed.                                                                               |
-| 4.2 — recovery scan            | `aso recover`                                                                                       | JSON envelope with `unfinishedTotal`, `resumableTotal`, and per-item `lastCompletedChild` / `nextPendingChild`. Run this once at boot. |
+| 3.1 — triage                   | `vines triage --seconds <n> --domain <id> [--domain <id> …]`                                          | Returns `{"activate": bool, "reason": "..."}`. If false, handle inline and stop.                                                       |
+| 3.2 step 2 — create ledger row | `vines start --objective "..." [--linear-parent <ENG-N>] [--state planning]`                          | Prints the orchestration UUID on stdout. Capture it: `ORCH=$(vines start …)`                                                             |
+| 3.2 step 5 — transition        | `vines set-state <orchestration-id> <init\|planning\|executing\|success\|failed> [--last-agent <id>]` | Move the orchestration through its lifecycle.                                                                                          |
+| (post-hoc) — link Linear later | `vines attach-linear-parent <orchestration-id> <ENG-N>`                                               | If you started the row before the Linear ticket existed.                                                                               |
+| 4.2 — recovery scan            | `vines recover`                                                                                       | JSON envelope with `unfinishedTotal`, `resumableTotal`, and per-item `lastCompletedChild` / `nextPendingChild`. Run this once at boot. |
 
 ### Worked sequence (operator request → final close)
 
 ```bash
 # Step 0 — triage
-aso triage --seconds 600 --domain system-agent --domain code-agent
+vines triage --seconds 600 --domain system-agent --domain code-agent
 # {"activate": true, ...}  → continue; else handle inline.
 
 # Step 1 — parent ticket
 PARENT=$(linear-ticket create --title "..." --state "In Progress" | jq -r '.identifier')
 
 # Step 2 — ledger row (recovery anchor)
-ORCH=$(aso start --objective "..." --linear-parent "$PARENT" --state planning)
+ORCH=$(vines start --objective "..." --linear-parent "$PARENT" --state planning)
 
 # Steps 4–6 — for each planned sub-task:
-aso set-state "$ORCH" executing --last-agent system-agent
+vines set-state "$ORCH" executing --last-agent system-agent
 SUB=$(linear-ticket create --parent "$PARENT" --title "[system-agent] ..." \
        --state "In Progress" | jq -r '.identifier')
 REPLY=$(openclaw agent --agent system-agent --message "..." --json --timeout 600 \
@@ -214,12 +214,12 @@ linear-ticket update  "$SUB" --state "Done"
 # Step 7 — close out
 linear-ticket comment "$PARENT" --body "Synthesized answer for the operator."
 linear-ticket update  "$PARENT" --state "Done"
-aso set-state "$ORCH" success
+vines set-state "$ORCH" success
 ```
 
-On failure: `aso set-state "$ORCH" failed` and `linear-ticket update "$PARENT" --state "Canceled"`.
+On failure: `vines set-state "$ORCH" failed` and `linear-ticket update "$PARENT" --state "Canceled"`.
 
-After a crash, run `aso recover` and resume from each `nextPendingChild`. The spec at [`aso/spec.md`](../aso/spec.md) is authoritative if anything in this doc drifts. Full integration recipe (including the env vars to source and the Node embedder path) is in [`INSTALL.md §9`](../INSTALL.md).
+After a crash, run `vines recover` and resume from each `nextPendingChild`. The spec at [`vines/spec.md`](../vines/spec.md) is authoritative if anything in this doc drifts. Full integration recipe (including the env vars to source and the Node embedder path) is in [`INSTALL.md §9`](../INSTALL.md).
 
 ## Memory
 

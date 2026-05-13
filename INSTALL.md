@@ -1,6 +1,6 @@
 # INSTALL.md
 
-Detailed setup for `openclaw-orchestra`. The fast path is `./scripts/setup.sh` then a few personalization edits. This doc spells out everything in case you want to do it by hand or understand what the script does.
+Detailed setup for `openclaw-hawkins`. The fast path is `./scripts/setup.sh` then a few personalization edits. This doc spells out everything in case you want to do it by hand or understand what the script does.
 
 ## Prerequisites
 
@@ -15,8 +15,8 @@ Detailed setup for `openclaw-orchestra`. The fast path is `./scripts/setup.sh` t
 ## 1. Clone the repo
 
 ```bash
-git clone https://github.com/parijatmukherjee/openclaw-orchestra.git ~/openclaw-orchestra
-cd ~/openclaw-orchestra
+git clone https://github.com/parijatmukherjee/openclaw-hawkins.git ~/openclaw-hawkins
+cd ~/openclaw-hawkins
 ```
 
 ## 2. Create the 6 specialist agents
@@ -209,21 +209,21 @@ openclaw agent --agent main --message \
 
 You should see the orchestrator acknowledge + dispatch + synthesize the system-agent's report.
 
-## 9. (Optional but recommended) Install ASO — the durable orchestration layer
+## 9. (Optional but recommended) Install VINES — the durable orchestration layer
 
-Everything above is **stateless** — the orchestrator agent re-decides what to do every turn, and a crash mid-flight loses the plan. The **Agentic Swarm Orchestrator (ASO)** library adds:
+Everything above is **stateless** — the orchestrator agent re-decides what to do every turn, and a crash mid-flight loses the plan. The **VINES** library adds:
 
 - A MariaDB ledger row per orchestration (one row, four columns + state enum).
 - Linear-backed sub-task tracking (you've already wired this if you did step 6).
-- A `aso recover` command that scans for unfinished work on startup and cross-references Linear for the resume point.
-- A `aso triage` command that returns the spec §3.1 activation decision so the orchestrator agent can route correctly.
+- A `vines recover` command that scans for unfinished work on startup and cross-references Linear for the resume point.
+- A `vines triage` command that returns the spec §3.1 activation decision so the orchestrator agent can route correctly.
 
-The full contract lives in [`aso/spec.md`](aso/spec.md). Follow it if you implement ASO in another language.
+The full contract lives in [`vines/spec.md`](vines/spec.md). Follow it if you implement VINES in another language.
 
 ### 9.1 Prerequisites
 
 - **Node ≥ 20** (`node -v`).
-- **MariaDB** (local or remote) with a dedicated database for ASO. We
+- **MariaDB** (local or remote) with a dedicated database for VINES. We
   recommend a dedicated user scoped to `INSERT, SELECT, UPDATE` on the
   `orchestration_ledger` table.
 
@@ -242,18 +242,18 @@ statement. The library supports `MARIADB_SSL=insecure` for self-signed certs.)
 ### 9.2 Install the library
 
 ```bash
-git clone https://github.com/parijatmukherjee/openclaw-orchestra.git
-cd openclaw-orchestra
+git clone https://github.com/parijatmukherjee/openclaw-hawkins.git
+cd openclaw-hawkins
 make install        # npm ci / npm install
 make build          # compile TypeScript into dist/
 ```
 
-You now have an `aso` CLI on the local `node_modules/.bin/aso` path (or via
-`npx aso ...`).
+You now have an `vines` CLI on the local `node_modules/.bin/aso` path (or via
+`npx vines ...`).
 
 ### 9.3 Configure
 
-The library reads these env vars (see [`aso/spec.md`](aso/spec.md) §5):
+The library reads these env vars (see [`vines/spec.md`](vines/spec.md) §5):
 
 | Variable           | Purpose                                                                  |
 | ------------------ | ------------------------------------------------------------------------ |
@@ -271,25 +271,25 @@ its env is sourced. **Never commit them.**
 ```bash
 make bootstrap-db        # uses the `mariadb` / `mysql` client
 # or, equivalent, via Node:
-npx aso init-db
+npx vines init-db
 ```
 
-Both paths apply [`aso/schema.sql`](aso/schema.sql) — the single
+Both paths apply [`vines/schema.sql`](vines/schema.sql) — the single
 `orchestration_ledger` table. The script is idempotent (`CREATE TABLE IF NOT
 EXISTS`).
 
 ### 9.5 Smoke-test
 
 ```bash
-npx aso status        # expect: "(ledger empty)"
-npx aso triage --seconds 60        # expect: {"activate": true, ...}
-npx aso recover                    # expect: {"unfinishedTotal": 0, ...}
+npx vines status        # expect: "(ledger empty)"
+npx vines triage --seconds 60        # expect: {"activate": true, ...}
+npx vines recover                    # expect: {"unfinishedTotal": 0, ...}
 ```
 
 ### 9.6 Wire it into the orchestrator agent
 
 Your existing OpenClaw orchestrator (Dobby, Maestro, Conductor — whatever
-yours is called) drives the `aso` CLI and `linear-ticket` via its `exec`
+yours is called) drives the `vines` CLI and `linear-ticket` via its `exec`
 tool. The CLI surface is intentionally shell-callable so an LLM-driven
 agent can do this directly — no Node glue required.
 
@@ -301,7 +301,7 @@ is exactly what the orchestrator runs via `exec`:
 
 ```bash
 # ── Step 0 — TRIAGE (spec §3.1) ───────────────────────────────────────────
-aso triage --seconds 600 --domain system-agent --domain code-agent --domain data-agent
+vines triage --seconds 600 --domain system-agent --domain code-agent --domain data-agent
 # → {"activate": true, "reason": "estimatedSeconds=600 > 30"}
 # If activate=false, handle inline and stop. If true, continue:
 
@@ -312,7 +312,7 @@ PARENT=$(linear-ticket create \
   --state "In Progress" | jq -r '.identifier')   # e.g. ENG-123
 
 # ── Step 2 — LEDGER ROW (spec §3.2 step 2) ────────────────────────────────
-ORCH=$(aso start \
+ORCH=$(vines start \
   --objective "Stand up staging monitoring stack" \
   --linear-parent "$PARENT" \
   --state planning)
@@ -325,7 +325,7 @@ openclaw agent --agent research-agent --message "Compare Prom vs VictoriaMetrics
   | (read -r brief; linear-ticket comment "$PARENT" --body "Research brief: $brief")
 
 # ── Step 4 + 5 — PLAN AND DISPATCH (spec §3.2 steps 4–5) ──────────────────
-aso set-state "$ORCH" executing --last-agent system-agent
+vines set-state "$ORCH" executing --last-agent system-agent
 
 SUB=$(linear-ticket create \
   --title "[system-agent] Install Prometheus + node_exporter" \
@@ -344,33 +344,33 @@ linear-ticket update  "$SUB" --state "Done"     # or "Canceled" on failure
 # ── Step 7 — FINAL REPORT (spec §3.2 step 7) ──────────────────────────────
 linear-ticket comment "$PARENT" --body "Synthesized result for the operator."
 linear-ticket update  "$PARENT" --state "Done"
-aso set-state "$ORCH" success
+vines set-state "$ORCH" success
 ```
 
 If a sub-task fails or the orchestrator decides to abort:
 
 ```bash
-aso set-state "$ORCH" failed --last-agent <which-one-failed>
+vines set-state "$ORCH" failed --last-agent <which-one-failed>
 linear-ticket update "$PARENT" --state "Canceled"
 ```
 
 After a crash or restart, the orchestrator runs **once** at boot:
 
 ```bash
-aso recover
+vines recover
 # → JSON: { unfinishedTotal, resumableTotal, items: [{ orchestrationId,
 #          linearParentId, lastCompletedChild, nextPendingChild, ... }] }
 ```
 
 For each `resumable` item, look at `nextPendingChild` in Linear and pick up
 from there. For `orphaned` items (`linear_parent_id` was set but Linear
-doesn't know it any more), call `aso set-state <id> failed` to clean up.
+doesn't know it any more), call `vines set-state <id> failed` to clean up.
 
 #### What you need in your orchestrator's `AGENTS.md`
 
 Open `~/.openclaw/workspace/AGENTS.md` (the orchestrator agent's workspace
 doc — installed by `scripts/setup.sh`) and confirm the **"Optional: durable
-state via the ASO library"** section is present. That section tells the LLM
+state via the VINES library"** section is present. That section tells the LLM
 this sequence is available. Add the env vars listed in §9.3 to your
 orchestrator agent's startup environment (typically the gateway's systemd
 drop-in or your shell rc).
@@ -382,7 +382,7 @@ LLM agent, skip the CLI and use the library directly. The exported
 `Orchestrator` class wraps the whole sequence above into a single method:
 
 ```ts
-import { Orchestrator, Ledger, LinearClient, dispatchSpecialist } from "openclaw-orchestra";
+import { Orchestrator, Ledger, LinearClient, dispatchSpecialist } from "openclaw-hawkins";
 
 const orchestrator = new Orchestrator({
   ledger: Ledger.fromEnv(),

@@ -189,24 +189,24 @@ linear-ticket update $RETRY --state done
    - **Alternative:** Set `LINEAR_API_KEY` in your shell environment.
 6. Copy `tools/linear-ticket` to `~/.local/bin/linear-ticket` and `chmod +x`. Smoke-test with `linear-ticket list --limit 5`.
 
-## Integrating with ASO (optional)
+## Integrating with VINES (optional)
 
-If you also installed the [ASO library](../aso/spec.md), Linear stops being the _only_ place state lives — an `orchestration_ledger` row in MariaDB becomes the crash-resilient anchor, and Linear remains the canonical record of sub-task state used during recovery cross-reference.
+If you also installed the [VINES library](../vines/spec.md), Linear stops being the _only_ place state lives — an `orchestration_ledger` row in MariaDB becomes the crash-resilient anchor, and Linear remains the canonical record of sub-task state used during recovery cross-reference.
 
-The ticket lifecycle above is unchanged; ASO just bookends it with two extra commands at the boundaries:
+The ticket lifecycle above is unchanged; VINES just bookends it with two extra commands at the boundaries:
 
 ```bash
 # Before creating the parent ticket — decide whether to activate at all (spec §3.1)
-aso triage --seconds <est> --domain <agent-id> [--domain <agent-id> ...]
+vines triage --seconds <est> --domain <agent-id> [--domain <agent-id> ...]
 
 # Right after `linear-ticket create` for the parent — record the recovery anchor
-ORCH=$(aso start --objective "..." --linear-parent "$PARENT_ID" --state planning)
+ORCH=$(vines start --objective "..." --linear-parent "$PARENT_ID" --state planning)
 
 # At the end of the request, alongside `linear-ticket update $PARENT --state Done`
-aso set-state "$ORCH" success     # or `failed` on the failure path
+vines set-state "$ORCH" success     # or `failed` on the failure path
 
 # Once at startup — pick up anything that was in flight when the process died
-aso recover
+vines recover
 ```
 
-The full sequence (including dispatch + per-sub-task ticketing) is documented in [`../INSTALL.md` §9.6](../INSTALL.md) and [`AGENTS.md`](AGENTS.md). `../aso/spec.md` is authoritative if anything drifts.
+The full sequence (including dispatch + per-sub-task ticketing) is documented in [`../INSTALL.md` §9.6](../INSTALL.md) and [`AGENTS.md`](AGENTS.md). `../vines/spec.md` is authoritative if anything drifts.

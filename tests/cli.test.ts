@@ -73,11 +73,11 @@ function captureOutput() {
   };
 }
 
-describe("aso triage", () => {
+describe("vines triage", () => {
   it("activates for long task", async () => {
     const main = await importMain();
     const out = captureOutput();
-    const rc = await main(["node", "aso", "triage", "--seconds", "60"]);
+    const rc = await main(["node", "vines", "triage", "--seconds", "60"]);
     out.restore();
     expect(rc).toBe(0);
     const payload = JSON.parse(out.stdout()) as { activate: boolean };
@@ -87,7 +87,7 @@ describe("aso triage", () => {
   it("does not activate for short task", async () => {
     const main = await importMain();
     const out = captureOutput();
-    const rc = await main(["node", "aso", "triage", "--seconds", "5"]);
+    const rc = await main(["node", "vines", "triage", "--seconds", "5"]);
     out.restore();
     expect(rc).toBe(0);
     expect(JSON.parse(out.stdout()).activate).toBe(false);
@@ -96,19 +96,19 @@ describe("aso triage", () => {
   it("counts repeated --domain flags", async () => {
     const main = await importMain();
     const out = captureOutput();
-    const rc = await main(["node", "aso", "triage", "--seconds", "5", "--domain", "a", "b", "c"]);
+    const rc = await main(["node", "vines", "triage", "--seconds", "5", "--domain", "a", "b", "c"]);
     out.restore();
     expect(rc).toBe(0);
     expect(JSON.parse(out.stdout()).activate).toBe(true);
   });
 });
 
-describe("aso status", () => {
+describe("vines status", () => {
   it("prints empty message when ledger has no rows", async () => {
     queryFn.mockResolvedValueOnce([]);
     const main = await importMain();
     const out = captureOutput();
-    const rc = await main(["node", "aso", "status"]);
+    const rc = await main(["node", "vines", "status"]);
     out.restore();
     expect(rc).toBe(0);
     expect(out.stdout()).toContain("ledger empty");
@@ -127,7 +127,7 @@ describe("aso status", () => {
     ]);
     const main = await importMain();
     const out = captureOutput();
-    const rc = await main(["node", "aso", "status", "--limit", "5"]);
+    const rc = await main(["node", "vines", "status", "--limit", "5"]);
     out.restore();
     expect(rc).toBe(0);
     expect(out.stdout()).toContain("success");
@@ -138,7 +138,7 @@ describe("aso status", () => {
   it("returns 2 on bad --limit", async () => {
     const main = await importMain();
     const out = captureOutput();
-    const rc = await main(["node", "aso", "status", "--limit", "-1"]);
+    const rc = await main(["node", "vines", "status", "--limit", "-1"]);
     out.restore();
     expect(rc).toBe(2);
     expect(out.stderr()).toContain("--limit");
@@ -148,7 +148,7 @@ describe("aso status", () => {
     queryFn.mockRejectedValueOnce(new Error("connection refused"));
     const main = await importMain();
     const out = captureOutput();
-    const rc = await main(["node", "aso", "status"]);
+    const rc = await main(["node", "vines", "status"]);
     out.restore();
     expect(rc).toBe(4);
     expect(out.stderr()).toMatch(/^db:/m);
@@ -158,18 +158,18 @@ describe("aso status", () => {
     queryFn.mockRejectedValueOnce(new Error("Linear API HTTP 401"));
     const main = await importMain();
     const out = captureOutput();
-    const rc = await main(["node", "aso", "status"]);
+    const rc = await main(["node", "vines", "status"]);
     out.restore();
     expect(rc).toBe(3);
     expect(out.stderr()).toMatch(/^linear:/m);
   });
 });
 
-describe("aso init-db", () => {
+describe("vines init-db", () => {
   it("applies schema and exits 0", async () => {
     const main = await importMain();
     const out = captureOutput();
-    const rc = await main(["node", "aso", "init-db"]);
+    const rc = await main(["node", "vines", "init-db"]);
     out.restore();
     expect(rc).toBe(0);
     expect(createConnectionFn).toHaveBeenCalledOnce();
@@ -181,7 +181,7 @@ describe("aso init-db", () => {
   });
 });
 
-describe("aso recover", () => {
+describe("vines recover", () => {
   it("emits JSON envelope with totals", async () => {
     // listUnfinished returns one row, then listChildren responds via fetch.
     queryFn.mockResolvedValueOnce([
@@ -248,7 +248,7 @@ describe("aso recover", () => {
 
     const main = await importMain();
     const out = captureOutput();
-    const rc = await main(["node", "aso", "recover"]);
+    const rc = await main(["node", "vines", "recover"]);
     out.restore();
     expect(rc).toBe(0);
     const payload = JSON.parse(out.stdout()) as {
@@ -263,14 +263,14 @@ describe("aso recover", () => {
   });
 });
 
-describe("aso start", () => {
+describe("vines start", () => {
   it("inserts a ledger row and prints the orchestration id", async () => {
     queryFn.mockResolvedValueOnce({ affectedRows: 1 });
     const main = await importMain();
     const out = captureOutput();
     const rc = await main([
       "node",
-      "aso",
+      "vines",
       "start",
       "--objective",
       "Stand up monitoring stack",
@@ -296,7 +296,7 @@ describe("aso start", () => {
   it("rejects blank --objective", async () => {
     const main = await importMain();
     const out = captureOutput();
-    const rc = await main(["node", "aso", "start", "--objective", "   "]);
+    const rc = await main(["node", "vines", "start", "--objective", "   "]);
     out.restore();
     expect(rc).toBe(2);
     expect(out.stderr()).toContain("--objective");
@@ -306,7 +306,7 @@ describe("aso start", () => {
     const main = await importMain();
     const writeErr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
     const writeOut = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
-    const rc = await main(["node", "aso", "start", "--objective", "x", "--state", "nonsense"]);
+    const rc = await main(["node", "vines", "start", "--objective", "x", "--state", "nonsense"]);
     writeErr.mockRestore();
     writeOut.mockRestore();
     expect(rc).not.toBe(0);
@@ -316,7 +316,7 @@ describe("aso start", () => {
     queryFn.mockResolvedValueOnce({ affectedRows: 1 });
     const main = await importMain();
     const out = captureOutput();
-    const rc = await main(["node", "aso", "start", "--objective", "x"]);
+    const rc = await main(["node", "vines", "start", "--objective", "x"]);
     out.restore();
     expect(rc).toBe(0);
     const insertCall = queryFn.mock.calls[0] as [string, unknown[]];
@@ -324,14 +324,14 @@ describe("aso start", () => {
   });
 });
 
-describe("aso set-state", () => {
+describe("vines set-state", () => {
   it("issues a state update and prints ok", async () => {
     queryFn.mockResolvedValueOnce({ affectedRows: 1 });
     const main = await importMain();
     const out = captureOutput();
     const rc = await main([
       "node",
-      "aso",
+      "vines",
       "set-state",
       "11111111-2222-3333-4444-555555555555",
       "executing",
@@ -354,7 +354,7 @@ describe("aso set-state", () => {
     queryFn.mockResolvedValueOnce({ affectedRows: 0 });
     const main = await importMain();
     const out = captureOutput();
-    const rc = await main(["node", "aso", "set-state", "missing-id", "success"]);
+    const rc = await main(["node", "vines", "set-state", "missing-id", "success"]);
     out.restore();
     expect(rc).toBe(2);
     expect(out.stderr()).toContain("missing-id");
@@ -364,19 +364,19 @@ describe("aso set-state", () => {
     const main = await importMain();
     const writeErr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
     const writeOut = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
-    const rc = await main(["node", "aso", "set-state", "id", "bogus"]);
+    const rc = await main(["node", "vines", "set-state", "id", "bogus"]);
     writeErr.mockRestore();
     writeOut.mockRestore();
     expect(rc).not.toBe(0);
   });
 });
 
-describe("aso attach-linear-parent", () => {
+describe("vines attach-linear-parent", () => {
   it("updates the row and prints ok", async () => {
     queryFn.mockResolvedValueOnce({ affectedRows: 1 });
     const main = await importMain();
     const out = captureOutput();
-    const rc = await main(["node", "aso", "attach-linear-parent", "oid-1", "ENG-9"]);
+    const rc = await main(["node", "vines", "attach-linear-parent", "oid-1", "ENG-9"]);
     out.restore();
     expect(rc).toBe(0);
     expect(out.stdout()).toMatch(/oid-1.*ENG-9/);
@@ -388,19 +388,19 @@ describe("aso attach-linear-parent", () => {
     queryFn.mockResolvedValueOnce({ affectedRows: 0 });
     const main = await importMain();
     const out = captureOutput();
-    const rc = await main(["node", "aso", "attach-linear-parent", "missing", "ENG-9"]);
+    const rc = await main(["node", "vines", "attach-linear-parent", "missing", "ENG-9"]);
     out.restore();
     expect(rc).toBe(2);
   });
 });
 
-describe("aso help / unknown", () => {
+describe("vines help / unknown", () => {
   it("--help returns 0", async () => {
     const main = await importMain();
     const out = captureOutput();
     // commander writes help to stdout via exitOverride; suppress.
     const writeOut = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
-    const rc = await main(["node", "aso", "--help"]);
+    const rc = await main(["node", "vines", "--help"]);
     writeOut.mockRestore();
     out.restore();
     expect(rc).toBe(0);
@@ -410,7 +410,7 @@ describe("aso help / unknown", () => {
     const main = await importMain();
     const out = captureOutput();
     const writeErr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
-    const rc = await main(["node", "aso", "totally-made-up"]);
+    const rc = await main(["node", "vines", "totally-made-up"]);
     writeErr.mockRestore();
     out.restore();
     expect(rc).not.toBe(0);

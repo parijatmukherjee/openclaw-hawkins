@@ -1,5 +1,5 @@
 /**
- * Recovery — implements `aso/spec.md` §4.2.
+ * Recovery — implements `vines/spec.md` §4.2.
  *
  * On service initialisation, find every orchestration in an unfinished state
  * (init | planning | executing), and for each cross-reference its
@@ -123,7 +123,7 @@ async function safeGetIssue(linear: LinearClient, id: string): Promise<LinearIss
   try {
     return await linear.getIssue(id);
   } catch (err: unknown) {
-    process.stderr.write(`[aso/recovery] Linear getIssue(${id}) failed: ${asMessage(err)}\n`);
+    process.stderr.write(`[vines/recovery] Linear getIssue(${id}) failed: ${asMessage(err)}\n`);
     return null;
   }
 }
@@ -132,7 +132,7 @@ async function safeListChildren(linear: LinearClient, id: string): Promise<Linea
   try {
     return await linear.listChildren(id);
   } catch (err: unknown) {
-    process.stderr.write(`[aso/recovery] Linear listChildren(${id}) failed: ${asMessage(err)}\n`);
+    process.stderr.write(`[vines/recovery] Linear listChildren(${id}) failed: ${asMessage(err)}\n`);
     return [];
   }
 }

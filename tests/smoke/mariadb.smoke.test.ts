@@ -32,7 +32,7 @@ describe(`mariadb smoke ${skip ? "[skipped: " + describeMissing(REQUIRED) + "]" 
       try {
         // The Ledger class doesn't expose delete (and shouldn't) — use the
         // pool directly via setState to mark cancelled, then leave a trail
-        // that's obvious in `aso status`.
+        // that's obvious in `vines status`.
         await ledger.setState(id, "failed", { lastAgentActive: "smoke-test" });
       } catch {
         // best-effort cleanup

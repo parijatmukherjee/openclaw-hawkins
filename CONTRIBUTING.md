@@ -1,15 +1,15 @@
-# Contributing to openclaw-orchestra
+# Contributing to openclaw-hawkins
 
 Thanks for considering a contribution. This repo ships a drop-in orchestration
-pattern for OpenClaw plus the **Agentic Swarm Orchestrator (ASO)** Node
-library that implements the [spec](aso/spec.md). The goal of this guide is to
+pattern for OpenClaw plus the **VINES** Node
+library that implements the [spec](vines/spec.md). The goal of this guide is to
 make first-time contributions painless.
 
 ## Quick start (5 minutes)
 
 ```bash
-git clone https://github.com/parijatmukherjee/openclaw-orchestra.git
-cd openclaw-orchestra
+git clone https://github.com/parijatmukherjee/openclaw-hawkins.git
+cd openclaw-hawkins
 make install        # npm ci / npm install
 make check          # lint + format-check + typecheck + tests
 ```
@@ -24,14 +24,14 @@ We love PRs that:
 - **Fix a bug** with a regression test that exercises the fix.
 - **Add a feature** with documentation in the README / spec and tests
   covering happy + failure paths.
-- **Improve docs** (especially `aso/spec.md`, `INSTALL.md`, and the agent
+- **Improve docs** (especially `vines/spec.md`, `INSTALL.md`, and the agent
   personas under `agents/`).
 - **Sharpen quality** — better types, tighter error messages, less code,
   more invariants enforced.
 
 We are cautious about PRs that:
 
-- Break the public ASO contract (`aso/spec.md`) without a migration path.
+- Break the public VINES contract (`vines/spec.md`) without a migration path.
 - Add new top-level dependencies. Each dep is a maintenance commitment —
   please justify it in the PR description.
 - Introduce LLM-specific behaviour at the library layer. The library should
@@ -55,7 +55,7 @@ export LINEAR_API_KEY=lin_api_…
 make smoke              # `vitest run --config vitest.smoke.config.ts`
 
 # Schema work
-make bootstrap-db       # apply aso/schema.sql via shell client
+make bootstrap-db       # apply vines/schema.sql via shell client
 make init-db            # apply via the Node CLI (alternative)
 ```
 
@@ -88,7 +88,7 @@ isolation.
 ```
 ┌──────────────────────────────────────────────────────────┐
 │  Orchestrator agent (LLM-driven, lives in OpenClaw)      │
-│  Reads operator request, calls into the ASO library      │
+│  Reads operator request, calls into the VINES library      │
 └──────────────────────────┬───────────────────────────────┘
                            │
 ┌──────────────────────────▼───────────────────────────────┐
@@ -130,7 +130,7 @@ driver) — tests must run hermetically in under a few seconds.
 
 ## Documentation
 
-- **`aso/spec.md`** is the contract. If you change library behaviour in a way
+- **`vines/spec.md`** is the contract. If you change library behaviour in a way
   that adopters could observe, update the spec first.
 - **`README.md`** is the front door for new users. Keep it scannable.
 - **`INSTALL.md`** is the long-form install guide. Code samples must work

@@ -1,5 +1,5 @@
 /**
- * Ledger persistence — implements `aso/spec.md` §4.1.
+ * Ledger persistence — implements `vines/spec.md` §4.1.
  *
  * One row per orchestration in `orchestration_ledger`. Linear stores the
  * canonical sub-task state; this ledger only records *which orchestrations
@@ -45,7 +45,7 @@ export class Ledger {
       // Cap query latency so the orchestrator never wedges on a stalled DB.
       socketTimeout: 30_000,
       // Don't run multi-statements through us — schema migrations have their
-      // own path (`scripts/bootstrap-aso-db.sh`).
+      // own path (`scripts/bootstrap-vines-db.sh`).
       multipleStatements: false,
     });
   }
@@ -162,7 +162,7 @@ export class Ledger {
     });
   }
 
-  /** Recent rows for the `aso status` CLI / dashboards. */
+  /** Recent rows for the `vines status` CLI / dashboards. */
   async listRecent(limit = 20): Promise<OrchestrationRow[]> {
     if (!Number.isInteger(limit) || limit <= 0) {
       throw new Error("limit must be a positive integer");

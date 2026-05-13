@@ -21,7 +21,7 @@ labels: bug
 
 ## Environment
 
-- openclaw-orchestra version (or commit SHA):
+- openclaw-hawkins version (or commit SHA):
 - Node version (`node -v`):
 - OS:
 - MariaDB version (server side):

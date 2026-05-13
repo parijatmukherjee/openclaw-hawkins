@@ -41,7 +41,7 @@ declare -A AGENT_MODELS=(
 command -v openclaw >/dev/null || { echo "ERROR: openclaw not on PATH" >&2; exit 1; }
 [ -d "$REPO_ROOT/agents" ] || { echo "ERROR: cannot find agents/ in repo at $REPO_ROOT" >&2; exit 1; }
 
-echo "openclaw-orchestra setup — creating 6 specialist agents under $OPENCLAW_AGENTS_BASE"
+echo "openclaw-hawkins setup — creating 6 specialist agents under $OPENCLAW_AGENTS_BASE"
 echo "  text-model:   $TEXT_MODEL"
 echo "  vision-model: $VISION_MODEL"
 echo

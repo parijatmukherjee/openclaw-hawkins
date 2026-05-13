@@ -8,21 +8,21 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Added
 
-- **`aso` CLI lifecycle subcommands** so a shell-driven orchestrator agent
+- **`vines` CLI lifecycle subcommands** so a shell-driven orchestrator agent
   can run the spec §3.2 protocol end-to-end without writing Node glue:
-  - `aso start --objective "..." [--linear-parent <ENG-N>] [--state <s>]`
+  - `vines start --objective "..." [--linear-parent <ENG-N>] [--state <s>]`
     — insert a new `orchestration_ledger` row; prints the UUID.
-  - `aso set-state <orch-id> <state> [--last-agent <id>]` — move through
+  - `vines set-state <orch-id> <state> [--last-agent <id>]` — move through
     `init → planning → executing → success | failed`.
-  - `aso attach-linear-parent <orch-id> <ENG-N>` — backfill the Linear
+  - `vines attach-linear-parent <orch-id> <ENG-N>` — backfill the Linear
     parent on a row created before the ticket existed.
 - Worked end-to-end integration sequence in `INSTALL.md §9.6` and a
   matching condensed version in `orchestrator/AGENTS.md`. Shows every
-  `aso` / `linear-ticket` / `openclaw agent` call an LLM orchestrator
+  `vines` / `linear-ticket` / `openclaw agent` call an LLM orchestrator
   runs through its `exec` tool from operator request to ticket close.
-- `orchestrator/LINEAR.md` gains an **"Integrating with ASO"** section
-  documenting where ASO bookends the ticket lifecycle.
-- `orchestrator/TOOLS.md.template` registers `aso` and `linear-ticket`
+- `orchestrator/LINEAR.md` gains an **"Integrating with VINES"** section
+  documenting where VINES bookends the ticket lifecycle.
+- `orchestrator/TOOLS.md.template` registers `vines` and `linear-ticket`
   in the tool table so adopters' generated `TOOLS.md` lists them.
 
 ### Added
@@ -42,11 +42,11 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
   Python files.
 - `SKILL.md` swaps the `python3 -c "import json …"` JSON-extraction
   one-liners for `jq -r '.result.payloads[0].text'`.
-- Doc references that called the ASO library "Python" now correctly say
-  "Node/TypeScript" (`README.md`, `aso/spec.md`, `scripts/bootstrap-aso-db.sh`).
+- Doc references that called the VINES library "Python" now correctly say
+  "Node/TypeScript" (`README.md`, `vines/spec.md`, `scripts/bootstrap-vines-db.sh`).
 
-- **ASO — Agentic Swarm Orchestrator.** A Node/TypeScript library that
-  implements the [ASO specification](aso/spec.md): a supervisor-pattern
+- **VINES (Versatile Integration for Networked Execution & State).** A Node/TypeScript library that
+  implements the [VINES specification](vines/spec.md): a supervisor-pattern
   protocol with durable state in MariaDB and Linear-backed ticket oversight.
   Includes:
   - `src/persistence.ts` — `Ledger` class CRUD-ing `orchestration_ledger`.
@@ -54,9 +54,9 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
   - `src/dispatcher.ts` — wrapper around `openclaw agent --json`.
   - `src/orchestrator.ts` — the 7-step §3.2 workflow engine + §3.1 triage.
   - `src/recovery.ts` — §4.2 cross-reference between ledger and Linear.
-  - `aso` CLI with `init-db`, `status`, `recover`, `triage` subcommands.
-- `aso/schema.sql` — canonical `orchestration_ledger` table.
-- `scripts/bootstrap-aso-db.sh` — shell helper for applying the schema.
+  - `vines` CLI with `init-db`, `status`, `recover`, `triage` subcommands.
+- `vines/schema.sql` — canonical `orchestration_ledger` table.
+- `scripts/bootstrap-vines-db.sh` — shell helper for applying the schema.
 - `Makefile` — operator + developer entrypoint over npm scripts.
 - GitHub Actions CI: matrix tests (Node 20 + 22), eslint, prettier check,
   shellcheck.
@@ -68,8 +68,8 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 ### Changed
 
 - `INSTALL.md` now documents both the agent setup (existing) and the
-  optional ASO library install.
-- `orchestrator/AGENTS.md` references the new ASO library and links the
+  optional VINES library install.
+- `orchestrator/AGENTS.md` references the new VINES library and links the
   spec.
 
 ## [0.0.x] — pre-1.0 specialist-pattern releases

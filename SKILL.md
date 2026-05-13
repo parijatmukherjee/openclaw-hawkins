@@ -1,10 +1,10 @@
 ---
-name: openclaw-orchestra-installer
+name: openclaw-hawkins-installer
 description: |
-  Installs the openclaw-orchestra multi-agent pattern on the current host: one
+  Installs the openclaw-hawkins multi-agent pattern on the current host: one
   conversational orchestrator + six isolated specialist agents (system, code,
   research, data, comm, vision). Use this skill when the operator asks to
-  "install openclaw-orchestra", "set up multi-agent orchestration",
+  "install openclaw-hawkins", "set up multi-agent orchestration",
   "deploy the specialists", "wire up the agent swarm", or similar. The skill
   walks through prerequisite checks, repo clone, agent creation via
   `openclaw agents add`, workspace overlay, optional Linear integration, and
@@ -12,9 +12,9 @@ description: |
   before any host changes are made.
 ---
 
-# Skill: install openclaw-orchestra
+# Skill: install openclaw-hawkins
 
-You are installing the [`openclaw-orchestra`](https://github.com/parijatmukherjee/openclaw-orchestra) multi-agent pattern on the host you have shell access to. The end state: one orchestrator (`agent:main` — typically yourself) + six isolated specialist agents reachable via `openclaw agent --agent <id> --message "..."`.
+You are installing the [`openclaw-hawkins`](https://github.com/parijatmukherjee/openclaw-hawkins) multi-agent pattern on the host you have shell access to. The end state: one orchestrator (`agent:main` — typically yourself) + six isolated specialist agents reachable via `openclaw agent --agent <id> --message "..."`.
 
 This is a multi-step installation. **Do not skip steps.** Stop and ask the operator at the explicit decision points below.
 
@@ -22,13 +22,13 @@ This is a multi-step installation. **Do not skip steps.** Stop and ask the opera
 
 Invoke this skill when the operator says any of:
 
-- "Install openclaw-orchestra"
+- "Install openclaw-hawkins"
 - "Set up the multi-agent orchestration"
 - "Deploy the specialists" / "Wire up the agent swarm"
 - "Install the orchestra pattern"
-- "Bootstrap openclaw-orchestra on this host"
+- "Bootstrap openclaw-hawkins on this host"
 
-If the operator says "explain openclaw-orchestra" or "what is openclaw-orchestra," **don't** trigger this skill — just describe the pattern by reading `README.md` from the repo.
+If the operator says "explain openclaw-hawkins" or "what is openclaw-hawkins," **don't** trigger this skill — just describe the pattern by reading `README.md` from the repo.
 
 ## Prerequisites — verify before changes
 
@@ -83,11 +83,11 @@ Ask the operator the following before doing anything that writes to the host. If
 ### Step 1 — clone or update the repo
 
 ```bash
-REPO_DIR="${HOME}/openclaw-orchestra"
+REPO_DIR="${HOME}/openclaw-hawkins"
 if [ -d "$REPO_DIR/.git" ]; then
   git -C "$REPO_DIR" pull --rebase --ff-only
 else
-  git clone https://github.com/parijatmukherjee/openclaw-orchestra.git "$REPO_DIR"
+  git clone https://github.com/parijatmukherjee/openclaw-hawkins.git "$REPO_DIR"
 fi
 ```
 
@@ -166,9 +166,9 @@ Smoke-test Linear:
 linear-ticket list --limit 5
 ```
 
-### Step 5.5 — optional: install ASO (durable orchestration layer)
+### Step 5.5 — optional: install VINES (durable orchestration layer)
 
-If the operator wants the protocol to survive crashes and use the `aso/spec.md` activation gate, install the ASO Node library. **Ask first** — it adds a MariaDB dependency.
+If the operator wants the protocol to survive crashes and use the `vines/spec.md` activation gate, install the VINES Node library. **Ask first** — it adds a MariaDB dependency.
 
 Prerequisites:
 - Node ≥ 20 (`node -v`).
@@ -193,15 +193,15 @@ export MARIADB_URL=mariadb://<host>:3306/orchestra
 export MARIADB_USER=orchestra
 export MARIADB_PASSWORD=<password>     # store via 1Password if available
 export LINEAR_API_KEY=<lin_api_…>
-make bootstrap-db       # or: npx aso init-db
+make bootstrap-db       # or: npx vines init-db
 ```
 
 Smoke-test:
 
 ```bash
-npx aso status                           # → "(ledger empty)"
-npx aso triage --seconds 60              # → {"activate": true, ...}
-npx aso recover                          # → {"unfinishedTotal": 0, ...}
+npx vines status                           # → "(ledger empty)"
+npx vines triage --seconds 60              # → {"activate": true, ...}
+npx vines recover                          # → {"unfinishedTotal": 0, ...}
 ```
 
 If any of these fail, **stop and ask the operator** — never blindly retry. The full integration recipe is in `INSTALL.md §9`.
@@ -248,7 +248,7 @@ openclaw agent --agent main \
 
 Expected: the orchestrator acknowledges, dispatches to system-agent via exec, parses the reply, and returns a synthesized one-paragraph answer in its own voice.
 
-If the orchestrator doesn't recognize the dispatch pattern, re-check that `~/.openclaw/workspace/AGENTS.md` contains the openclaw-orchestra content (especially the "How to dispatch" section).
+If the orchestrator doesn't recognize the dispatch pattern, re-check that `~/.openclaw/workspace/AGENTS.md` contains the openclaw-hawkins content (especially the "How to dispatch" section).
 
 ## Reporting back to the operator
 
@@ -285,6 +285,6 @@ When done, give the operator:
 Point the operator at:
 - `~/.openclaw/workspace/AGENTS.md` — full architecture and dispatch protocol
 - `~/.openclaw/workspace/LINEAR.md` (if installed) — ticket lifecycle
-- `https://github.com/parijatmukherjee/openclaw-orchestra/blob/main/INSTALL.md` — deeper customization
+- `https://github.com/parijatmukherjee/openclaw-hawkins/blob/main/INSTALL.md` — deeper customization
 
 The orchestrator picks up the new AGENTS.md on its next session. From then on, when the operator asks for something non-trivial, the orchestrator should acknowledge + dispatch + synthesize.

@@ -1,7 +1,7 @@
 /**
- * Environment-driven configuration for ASO.
+ * Environment-driven configuration for VINES.
  *
- * Variables (see `aso/spec.md` §5):
+ * Variables (see `vines/spec.md` §5):
  *
  *   MARIADB_URL       mariadb://host[:port]/database  (credentials in the URL
  *                     are honoured and override the env vars below)
@@ -31,7 +31,7 @@ export interface DBConfig {
 export function loadDBConfig(env: NodeJS.ProcessEnv = process.env): DBConfig {
   const raw = env.MARIADB_URL;
   if (!raw) {
-    throw new Error("MARIADB_URL is required (see aso/spec.md §5)");
+    throw new Error("MARIADB_URL is required (see vines/spec.md §5)");
   }
 
   let parsed: URL;
@@ -103,7 +103,7 @@ export function sslOptionFor(mode: SslMode): boolean | { rejectUnauthorized: boo
 export function loadLinearApiKey(env: NodeJS.ProcessEnv = process.env): string {
   const key = env.LINEAR_API_KEY;
   if (!key) {
-    throw new Error("LINEAR_API_KEY is required (see aso/spec.md §5)");
+    throw new Error("LINEAR_API_KEY is required (see vines/spec.md §5)");
   }
   return key;
 }

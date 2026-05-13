@@ -1,5 +1,5 @@
 /**
- * Protocol engine — `aso/spec.md` §3.
+ * Protocol engine — `vines/spec.md` §3.
  *
  *  - §3.1 Triage — decide whether an objective qualifies for the protocol.
  *  - §3.2 Workflow — drive the 7-step sequence end-to-end, recording

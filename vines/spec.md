@@ -1,14 +1,14 @@
-# Specification: Agentic Swarm Orchestrator (ASO)
+# Specification: VINES (Versatile Integration for Networked Execution & State)
 
-This document is the canonical specification for the ASO subsystem of
-`openclaw-orchestra`. The Node/TypeScript implementation under `src/` and the
+This document is the canonical specification for the VINES subsystem of
+`openclaw-hawkins`. The Node/TypeScript implementation under `src/` and the
 operator docs (INSTALL.md, orchestrator/AGENTS.md) all reference this file.
 If behaviour drifts from the spec, the spec wins — update the spec first,
 then the implementation.
 
 ## 1. Overview
 
-The Agentic Swarm Orchestrator (ASO) is a supervisor-pattern logic framework
+VINES (Versatile Integration for Networked Execution & State) is a supervisor-pattern logic framework
 designed to manage complex, multi-step tasks. It bridges the gap between
 high-level user intent and a specialized worker swarm, utilising Linear for
 project management and a cloud MariaDB instance for durable state
@@ -86,7 +86,7 @@ CREATE TABLE orchestration_ledger (
 
 `orchestration_id` is stored as `CHAR(36)` because MariaDB does not have a
 native `UUID` SQL type; the column holds the canonical 36-character
-hyphenated form. See `aso/schema.sql` for the authoritative definition.
+hyphenated form. See `vines/schema.sql` for the authoritative definition.
 
 ### 4.2 Error Handling & Resilience
 

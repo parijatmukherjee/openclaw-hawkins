@@ -1,11 +1,11 @@
 /**
- * Shared types for the Agentic Swarm Orchestrator.
+ * Shared types for the VINES (Versatile Integration for Networked Execution & State).
  *
  * The wire-equivalent SQL ENUM for {@link LedgerState} is defined in
- * `aso/schema.sql`; if you add a value here, add it there too (and vice versa).
+ * `vines/schema.sql`; if you add a value here, add it there too (and vice versa).
  */
 
-/** Lifecycle state for an orchestration. See `aso/spec.md` §3.2 / §4.1. */
+/** Lifecycle state for an orchestration. See `vines/spec.md` §3.2 / §4.1. */
 export type LedgerState = "init" | "planning" | "executing" | "success" | "failed";
 
 /** Convenience: the three states that recovery considers "in flight". */
@@ -39,7 +39,7 @@ export interface OrchestrationRow {
   updatedAt: Date;
 }
 
-/** A minimal projection of a Linear issue used inside ASO. */
+/** A minimal projection of a Linear issue used inside VINES. */
 export interface LinearIssue {
   id: string; // UUID
   identifier: string; // ENG-42 style

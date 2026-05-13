@@ -1,10 +1,10 @@
 /**
- * openclaw-orchestra — Agentic Swarm Orchestrator (ASO).
+ * openclaw-hawkins — VINES.
  *
  * The default entry point exposes the library API. The CLI lives at
  * `./cli.js` and is wired through the `bin` field in `package.json`.
  *
- * See `aso/spec.md` for the contract this package implements.
+ * See `vines/spec.md` for the contract this package implements.
  */
 
 export {

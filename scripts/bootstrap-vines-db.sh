@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# bootstrap-aso-db.sh — apply aso/schema.sql to the configured MariaDB.
+# bootstrap-vines-db.sh — apply vines/schema.sql to the configured MariaDB.
 #
-# Reads the same env vars as the Node library (see aso/spec.md §5):
+# Reads the same env vars as the Node library (see vines/spec.md §5):
 #
 #   MARIADB_URL       e.g. mariadb://db.example.com:3306/orchestra
 #                          (credentials in the URL are honoured)
@@ -61,7 +61,7 @@ fi
 
 # --- locate schema ----------------------------------------------------------
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-schema="$script_dir/../aso/schema.sql"
+schema="$script_dir/../vines/schema.sql"
 if [ ! -f "$schema" ]; then
   echo "error: schema not found at $schema" >&2
   exit 1

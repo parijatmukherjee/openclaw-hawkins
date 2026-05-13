@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * `aso` command-line interface — the shell-callable surface of the ASO
+ * `vines` command-line interface — the shell-callable surface of the VINES
  * library. Designed so an LLM-driven orchestrator (running inside OpenClaw,
  * Claude Code, or any agent runtime with an `exec` tool) can drive the
  * spec §3.2 protocol end-to-end without writing custom glue.
@@ -8,7 +8,7 @@
  * Subcommands:
  *
  *   Setup / observability
- *     init-db                  Apply aso/schema.sql to the configured database.
+ *     init-db                  Apply vines/schema.sql to the configured database.
  *     status                   Print recent ledger rows.
  *     recover                  JSON recovery report (spec §4.2).
  *     triage                   Activation decision (spec §3.1).
@@ -56,15 +56,15 @@ function parseState(value: string): LedgerState {
 
 class UserError extends Error {}
 
-const SCHEMA_PATH = resolve(dirname(fileURLToPath(import.meta.url)), "..", "aso", "schema.sql");
+const SCHEMA_PATH = resolve(dirname(fileURLToPath(import.meta.url)), "..", "vines", "schema.sql");
 
 export async function main(argv: readonly string[] = process.argv): Promise<number> {
   const program = new Command();
   program
-    .name("aso")
+    .name("vines")
     .description(
-      "Agentic Swarm Orchestrator — supervisor-pattern operator for an OpenClaw " +
-        "specialist swarm. See aso/spec.md for the contract.",
+      "VINES (Versatile Integration for Networked Execution & State) — supervisor-pattern operator for an OpenClaw " +
+        "specialist swarm. See vines/spec.md for the contract.",
     )
     .exitOverride();
 
@@ -72,7 +72,7 @@ export async function main(argv: readonly string[] = process.argv): Promise<numb
 
   program
     .command("init-db")
-    .description("Apply aso/schema.sql to the configured database.")
+    .description("Apply vines/schema.sql to the configured database.")
     .action(async () => {
       rc = await runOrReportError(initDb);
     });
@@ -139,7 +139,7 @@ export async function main(argv: readonly string[] = process.argv): Promise<numb
     .description(
       "Move an orchestration through its lifecycle (spec §3.2 steps 3–7 and §4.2 recovery).",
     )
-    .argument("<orchestration-id>", "UUID returned by `aso start`")
+    .argument("<orchestration-id>", "UUID returned by `vines start`")
     .argument("<state>", `One of: ${LEDGER_STATES.join(" | ")}`, parseState)
     .option("-a, --last-agent <id>", "Specialist id to record as last-active (telemetry; optional)")
     .action(async (id: string, state: LedgerState, opts: { lastAgent?: string }) => {
@@ -149,7 +149,7 @@ export async function main(argv: readonly string[] = process.argv): Promise<numb
   program
     .command("attach-linear-parent")
     .description("Backfill linear_parent_id on an existing orchestration row.")
-    .argument("<orchestration-id>", "UUID returned by `aso start`")
+    .argument("<orchestration-id>", "UUID returned by `vines start`")
     .argument("<linear-parent-id>", "Linear identifier (ENG-42) or UUID")
     .action(async (id: string, linearParentId: string) => {
       rc = await runOrReportError(() => attachLinearParent(id, linearParentId));
@@ -271,7 +271,7 @@ async function startOrchestration(args: {
       lastAgentActive: args.lastAgentActive,
     });
     // Print only the id on stdout so callers can capture it cleanly:
-    //   ORCH_ID=$(aso start --objective "...")
+    //   ORCH_ID=$(vines start --objective "...")
     process.stdout.write(id + "\n");
     return 0;
   } finally {

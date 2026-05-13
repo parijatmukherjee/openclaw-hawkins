@@ -19,7 +19,7 @@
 ## Spec impact
 
 <!-- Does this change observable library behaviour? If yes, link the
-aso/spec.md section you updated (or write "no spec impact"). -->
+vines/spec.md section you updated (or write "no spec impact"). -->
 
 ## Breaking changes
 

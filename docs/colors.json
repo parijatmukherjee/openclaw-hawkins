@@ -1,0 +1,30 @@
+{
+  "$schema": "design-tokens.v1",
+  "name": "openclaw-hawkins",
+  "tokens": {
+    "pulseRed": {
+      "value": "#E60000",
+      "role": "primary",
+      "description": "Pulse Red — primary accent. The Curse pulses red. Used for badges, headings, anomaly indicators."
+    },
+    "voidBlack": {
+      "value": "#000000",
+      "role": "background",
+      "description": "Void Black — base background for banners, social previews, dark-theme surfaces."
+    },
+    "vascularMaroon": {
+      "value": "#4A0E0E",
+      "role": "tertiary",
+      "description": "Vascular Maroon — deep accent. Vines, shadows, hover states. Always recedes."
+    }
+  },
+  "usage": {
+    "badges": "Prefer Pulse Red for status badges where shields.io accepts a hex color. Black + maroon are reserved for imagery, not badges.",
+    "imagery": "Black backgrounds, red linework, occasional maroon glow. Neural webs, vines, clock-face motifs.",
+    "doNotUse": [
+      "Bright accent colors outside the palette (no green, blue, yellow).",
+      "Pastel variations of the three core hues.",
+      "Pulse Red as a wash — it is an accent, not a fill."
+    ]
+  }
+}

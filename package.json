@@ -1,16 +1,16 @@
 {
-  "name": "openclaw-orchestra",
+  "name": "openclaw-hawkins",
   "version": "0.1.0",
-  "description": "Agentic Swarm Orchestrator (ASO) for OpenClaw — supervisor-pattern logic with Linear ticket oversight and MariaDB durable state.",
+  "description": "openclaw-hawkins — multi-agent orchestration for OpenClaw. Ships VINES (durable orchestration state in MariaDB) and the supervisor pattern with Linear-backed ticket oversight.",
   "license": "MIT",
   "author": "Parijat Mukherjee",
-  "homepage": "https://github.com/parijatmukherjee/openclaw-orchestra",
+  "homepage": "https://github.com/parijatmukherjee/openclaw-hawkins",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/parijatmukherjee/openclaw-orchestra.git"
+    "url": "git+https://github.com/parijatmukherjee/openclaw-hawkins.git"
   },
   "bugs": {
-    "url": "https://github.com/parijatmukherjee/openclaw-orchestra/issues"
+    "url": "https://github.com/parijatmukherjee/openclaw-hawkins/issues"
   },
   "type": "module",
   "main": "./dist/index.js",
@@ -22,13 +22,13 @@
     }
   },
   "bin": {
-    "aso": "./dist/cli.js"
+    "vines": "./dist/cli.js"
   },
   "files": [
     "dist",
-    "aso/spec.md",
-    "aso/schema.sql",
-    "scripts/bootstrap-aso-db.sh",
+    "vines/spec.md",
+    "vines/schema.sql",
+    "scripts/bootstrap-vines-db.sh",
     "README.md",
     "INSTALL.md",
     "LICENSE"

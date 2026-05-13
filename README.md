@@ -1,40 +1,57 @@
 <p align="center">
-  <img src="banner.png" alt="openclaw-orchestra" width="100%">
+  <img src="banner.png" alt="openclaw-hawkins" width="100%">
 </p>
 
-# 🦞 openclaw-orchestra — Multi-Agent Orchestration for OpenClaw (LLM-Powered Autonomous Workflows)
+# 🩸 openclaw-hawkins — Multi-Agent Orchestration for OpenClaw
 
-[![CI](https://github.com/parijatmukherjee/openclaw-orchestra/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/parijatmukherjee/openclaw-orchestra/actions/workflows/ci.yml)
-[![Coverage](https://codecov.io/gh/parijatmukherjee/openclaw-orchestra/branch/main/graph/badge.svg)](https://codecov.io/gh/parijatmukherjee/openclaw-orchestra)
+[![CI](https://github.com/parijatmukherjee/openclaw-hawkins/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/parijatmukherjee/openclaw-hawkins/actions/workflows/ci.yml)
+[![Coverage](https://codecov.io/gh/parijatmukherjee/openclaw-hawkins/branch/main/graph/badge.svg)](https://codecov.io/gh/parijatmukherjee/openclaw-hawkins)
 [![Node](https://img.shields.io/badge/node-%E2%89%A520-43853d?logo=node.js&logoColor=white)](https://nodejs.org)
 [![TypeScript](https://img.shields.io/badge/typescript-strict-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
-[![Code style: Prettier](https://img.shields.io/badge/code_style-prettier-ff69b4?logo=prettier&logoColor=white)](https://prettier.io)
+[![Code style: Prettier](https://img.shields.io/badge/code_style-prettier-E60000?logo=prettier&logoColor=white)](https://prettier.io)
 [![Lint: ESLint](https://img.shields.io/badge/lint-eslint-4b32c3?logo=eslint&logoColor=white)](https://eslint.org)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![GitHub stars](https://img.shields.io/github/stars/parijatmukherjee/openclaw-orchestra?style=social)](https://github.com/parijatmukherjee/openclaw-orchestra/stargazers)
+[![License: MIT](https://img.shields.io/badge/License-MIT-E60000.svg)](LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/parijatmukherjee/openclaw-hawkins?style=social)](https://github.com/parijatmukherjee/openclaw-hawkins/stargazers)
 
-**🎼 Drop-in multi-agent orchestration pattern for [OpenClaw](https://openclaw.ai), with an optional durable-state layer powered by MariaDB + Linear.**
+> **Everything is Connected.**
 
-> ⭐ **Find this useful?** Hit the star button up top — it helps other OpenClaw operators discover the pattern, and it tells me whether to keep iterating on it. Thank you. 🙏
+A drop-in multi-agent orchestration pattern for [OpenClaw](https://openclaw.ai). One conversational orchestrator (**the Nexus**) coordinates six isolated specialist agents (**the Tendrils**), with optional durable state (**VINES**) and Linear-backed ticket oversight. The brand vocabulary is [Stranger Things](https://www.netflix.com/title/80057281)–coloured; the protocol is grounded engineering.
 
-What you get, in one paragraph: one conversational **orchestrator** + six isolated specialist agents (🔧 `system`, ⌨️ `code`, 🔍 `research`, 📊 `data`, ✉️ `comm`, 👁️ `vision`). The operator only ever talks to the orchestrator. Specialists do the heavy lifting in their own workspaces, with their own memory and tools. Layered on top — and entirely optional — is **ASO** (Agentic Swarm Orchestrator), a Node/TypeScript library that adds 📋 Linear-backed ticket oversight, a `orchestration_ledger` row per request in MariaDB, an activation gate (spec §3.1), and crash-resilient resume (spec §4.2).
+> ⭐ **Find this useful?** Star the repo — it surfaces the pattern to other OpenClaw operators and tells me whether to keep iterating. 🩸
+
+---
+
+## 🕸️ Architecture (the Hive-Mind hierarchy)
 
 ```
-┌─────────────────────────────────────────┐
-│   🎼 Orchestrator (agent:main)           │
-│  - Talks to the operator                │
-│  - Picks the right specialist           │
-│  - Dispatches via `openclaw agent`      │
-│  - Synthesizes + reports                │
-└─────────────────┬───────────────────────┘
-                  │
-    ┌─────────────┼─────────────┬─────────────┐
-    │             │             │             │
-┌───▼────┐  ┌────▼────┐  ┌────▼────┐  ┌────▼────┐
-│🔧system│  │⌨️ code  │  │🔍research│  │📊 data  │  …
-│ agent  │  │ agent   │  │ agent   │  │ agent   │
-└────────┘  └─────────┘  └─────────┘  └─────────┘
+                ┌─────────────────────────────────────────┐
+                │   🎼 The Nexus (orchestrator:main)       │
+                │  - Talks to the operator                │
+                │  - Decides who handles what             │
+                │  - Drives The Pulse end-to-end          │
+                │  - Synthesises + reports                │
+                └─────────────────┬───────────────────────┘
+                                  │ openclaw agent --agent <id> --message "..."
+        ┌─────────────────────────┼─────────────────────────┐
+        │             │           │           │             │
+   ┌────▼───┐    ┌────▼────┐  ┌───▼─────┐  ┌──▼────┐    ┌───▼────┐
+   │🔧system│    │⌨️ code  │  │🔍research│  │📊 data│    │ … six  │
+   │ agent  │    │ agent   │  │  agent  │  │ agent │    │tendrils│
+   └────────┘    └─────────┘  └─────────┘  └───────┘    └────────┘
+                                  │
+                ┌─────────────────▼──────────────────┐
+                │   🧠 The Hive — durable memory     │
+                │   • vines_ledger   (orchestration  │
+                │      state, per request)           │
+                │   • [VECNA coming next]            │
+                └────────────────────────────────────┘
 ```
+
+Three layers, full vocabulary in [`docs/branding.md`](docs/branding.md):
+
+- **The Nexus** — the orchestrator. Operator talks only here.
+- **The Tendrils** — the six specialists. `system-agent`, `code-agent`, `research-agent`, `data-agent`, `comm-agent`, `vision-agent`.
+- **The Hive** — MariaDB-backed persistence. Today: VINES (orchestration state). Soon: VECNA (shared knowledge).
 
 ---
 
@@ -47,18 +64,14 @@ What you get, in one paragraph: one conversational **orchestrator** + six isolat
 🪄 **Step 1.** Drop the skill into your workspace:
 
 ```bash
-mkdir -p ~/.openclaw/workspace/skills/openclaw-orchestra-installer
-curl -fsSL https://raw.githubusercontent.com/parijatmukherjee/openclaw-orchestra/main/SKILL.md \
-  > ~/.openclaw/workspace/skills/openclaw-orchestra-installer/SKILL.md
+mkdir -p ~/.openclaw/workspace/skills/openclaw-hawkins-installer
+curl -fsSL https://raw.githubusercontent.com/parijatmukherjee/openclaw-hawkins/main/SKILL.md \
+  > ~/.openclaw/workspace/skills/openclaw-hawkins-installer/SKILL.md
 ```
 
-💬 **Step 2.** Ask your agent:
+💬 **Step 2.** Ask your agent: _"Install openclaw-hawkins on this host."_
 
-> "Install openclaw-orchestra on this host."
-
-✨ The skill walks the agent through prerequisite checks, repo clone, agent creation, workspace overlay, optional Linear wiring, and end-to-end smoke tests. It will ask you the personalization questions (orchestrator name, vibe, host facts) before making changes.
-
-💡 If you don't have a working orchestrator yet, you can paste the contents of `SKILL.md` into any shell-capable AI assistant running on the target host.
+✨ The skill walks the agent through prerequisite checks, repo clone, agent creation, workspace overlay, optional Linear wiring, and end-to-end smoke tests. It asks the personalisation questions (Nexus name, vibe, host facts) before making any changes.
 
 ---
 
@@ -68,130 +81,136 @@ curl -fsSL https://raw.githubusercontent.com/parijatmukherjee/openclaw-orchestra
 
 ```bash
 # 1️⃣ Clone
-git clone https://github.com/parijatmukherjee/openclaw-orchestra.git ~/openclaw-orchestra
-cd ~/openclaw-orchestra
+git clone https://github.com/parijatmukherjee/openclaw-hawkins.git ~/openclaw-hawkins
+cd ~/openclaw-hawkins
 
 # 2️⃣ Create the 6 specialist agents
 ./scripts/setup.sh
 
-# 3️⃣ Personalize each specialist's identity
+# 3️⃣ Personalise each specialist's identity
 for id in system-agent code-agent research-agent data-agent comm-agent vision-agent; do
   cp agents/$id/IDENTITY.md.template ~/.openclaw/agents/$id/workspace/IDENTITY.md
 done
-# then edit each ~/.openclaw/agents/<id>/workspace/IDENTITY.md
-# (fill in your name + host)
 
-# 4️⃣ Install the orchestrator workspace files
-cp orchestrator/AGENTS.md       ~/.openclaw/workspace/AGENTS.md
-cp orchestrator/TOOLS.md.template ~/.openclaw/workspace/TOOLS.md     # then edit
-cp orchestrator/IDENTITY.md.template ~/.openclaw/workspace/IDENTITY.md  # then edit
+# 4️⃣ Install the Nexus's workspace files
+cp orchestrator/AGENTS.md           ~/.openclaw/workspace/AGENTS.md
+cp orchestrator/TOOLS.md.template   ~/.openclaw/workspace/TOOLS.md     # then edit
+cp orchestrator/IDENTITY.md.template ~/.openclaw/workspace/IDENTITY.md # then edit
 
 # 5️⃣ Restart and smoke-test
 openclaw gateway restart
 openclaw agent --agent system-agent --message "Introduce yourself in one line." --json --timeout 30
 ```
 
-📖 Full step-by-step (including the optional Linear integration) is in **[INSTALL.md](INSTALL.md)**.
+📖 Full step-by-step (Linear + VINES) lives in **[INSTALL.md](INSTALL.md)**.
 
 ---
 
 ## ✅ Prerequisites
 
-**Specialist pattern (the minimum):**
+**The minimum (Nexus + Tendrils, no Hive):**
 
 - 🐚 **OpenClaw ≥ 2026.5.7** with the gateway running. Check: `openclaw --version` and `openclaw gateway status`.
-- 🧠 **At least one working model with auth.** Defaults assume `ollama/kimi-k2.6:cloud` (text) and `ollama/kimi-k2.5:cloud` (vision). Substitute OpenAI / Groq / any Anthropic-compatible provider / etc. via env vars to `setup.sh`.
+- 🧠 **At least one model with auth.** Defaults assume `ollama/kimi-k2.6:cloud` (text) and `ollama/kimi-k2.5:cloud` (vision). Substitute OpenAI / Groq / any Anthropic-compatible provider via env vars to `setup.sh`.
 
 **Optional add-ons:**
 
 - 📋 A **Linear** account (any plan) if you want ticket oversight. The CLI reads its API key from `$LINEAR_API_KEY` by default; if you'd rather keep the key in 1Password, the [`op` CLI](https://developer.1password.com/docs/cli/) is a supported fallback (see `orchestrator/LINEAR.md`). Neither `op` nor a 1Password account is required.
-- 🟢 **Node ≥ 20** + a **MariaDB** instance (local or cloud, TLS supported including self-signed via `MARIADB_SSL=insecure`) if you want the **ASO** durable-state layer.
+- 🟢 **Node ≥ 20** + a **MariaDB** instance (local or cloud — TLS supported including self-signed via `MARIADB_SSL=insecure`) if you want **VINES**, the durable-state layer.
 
 ---
 
-## 🔀 How dispatch works
+## 🔀 The Pulse (how dispatch flows)
 
-The orchestrator runs this in its `exec` tool whenever it needs a specialist:
+When the Nexus decides a request isn't trivial, it enters **The Pulse**. Five named phases:
 
-```bash
-openclaw agent --agent <id> --message "<task>" --json --timeout <seconds>
+```
+operator request
+       ↓
+🩸 Sensitivity Check    → does this need the full protocol?  (vines triage)
+       ↓ (yes)
+🩸 Anchoring            → parent Linear ticket + VINES row   (linear-ticket create / vines start)
+       ↓
+🩸 Deep Seeking         → optional research-agent dispatch
+       ↓
+🩸 The Connection       → loop dispatch to each Tendril       (openclaw agent --agent ...)
+       ↓
+🩸 Consolidation        → close tickets + final reply         (vines set-state ... success)
 ```
 
-The response is structured JSON. The orchestrator parses `result.payloads[0].text`, synthesizes it into its own voice, and replies to the operator.
+Detailed worked examples + log strings: [`docs/pulse-protocol.md`](docs/pulse-protocol.md). Spec contract: [`vines/spec.md`](vines/spec.md).
 
-📜 A typical conversation flow:
+A typical conversation:
 
 ```
 🗣️ operator: "Install Docker and confirm the daemon is running."
    ↓
-🎼 orchestrator: "Delegating to system-agent — expect ~2 min."
+🎼 Nexus: "Anchoring as ENG-12. Connecting to the Web…"
    ↓ (dispatches in background; remains responsive in chat)
    ↓
 🔧 system-agent: returns a structured report
    ↓
-🎼 orchestrator: "Done. Docker 26.1 installed, daemon active. (Ticket DOB-12)"
+🎼 Nexus: "Consolidating. Docker 26.1 installed, daemon active. (ENG-12)"
 ```
-
-If Linear is wired up, a parent ticket + sub-ticket(s) record this whole chain on your board.
 
 ---
 
-## 🎭 What you get
+## 🎭 The Tendrils
 
-Six specialist agents, each isolated:
+Six specialists, each a true top-level OpenClaw agent (`openclaw agents add <id>`) — not a subagent — with its own `~/.openclaw/agents/<id>/workspace/`, memory dir, and scoped persona in `AGENTS.md`.
 
-|     | Agent            | Scope                                                          | Default model                             |
-| --- | ---------------- | -------------------------------------------------------------- | ----------------------------------------- |
-| 🔧  | `system-agent`   | apt, systemd, ufw, cron, disk, logs, host config               | `ollama/kimi-k2.6:cloud`                  |
-| ⌨️  | `code-agent`     | software dev, debugging, testing, git                          | `ollama/kimi-k2.6:cloud`                  |
-| 🔍  | `research-agent` | web research, comparisons, sourced reports                     | `ollama/kimi-k2.6:cloud`                  |
-| 📊  | `data-agent`     | CSV/JSON/Excel parsing, analysis, charts                       | `ollama/kimi-k2.6:cloud`                  |
-| ✉️  | `comm-agent`     | email/chat drafts, calendar (always drafts — never auto-sends) | `ollama/kimi-k2.6:cloud`                  |
-| 👁️  | `vision-agent`   | image analysis, OCR, screenshots                               | `ollama/kimi-k2.5:cloud` (vision-capable) |
+|     | Agent (functional id) | Brand alias    | Scope                                                          | Default model            |
+| --- | --------------------- | -------------- | -------------------------------------------------------------- | ------------------------ |
+| 🔧  | `system-agent`        | sys-tendril    | apt, systemd, ufw, cron, disk, logs, host config               | `ollama/kimi-k2.6:cloud` |
+| ⌨️  | `code-agent`          | code-tendril   | software dev, debugging, testing, git                          | `ollama/kimi-k2.6:cloud` |
+| 🔍  | `research-agent`      | search-tendril | web research, comparisons, sourced reports                     | `ollama/kimi-k2.6:cloud` |
+| 📊  | `data-agent`          | data-tendril   | CSV/JSON/Excel parsing, analysis, charts                       | `ollama/kimi-k2.6:cloud` |
+| ✉️  | `comm-agent`          | comm-tendril   | email/chat drafts, calendar (always drafts — never auto-sends) | `ollama/kimi-k2.6:cloud` |
+| 👁️  | `vision-agent`        | vision-tendril | image analysis, OCR, screenshots                               | `ollama/kimi-k2.5:cloud` |
 
-Each one is a **true top-level OpenClaw agent** (`openclaw agents add <id>`) — not a subagent — with its own `~/.openclaw/agents/<id>/workspace/`, its own memory dir, its own scoped persona in `AGENTS.md`.
+> The functional ids stay stable for OpenClaw. Tendril aliases are used in branded prose; they don't replace the ids in code, on disk, or in `openclaw agent --agent ...` invocations.
 
 ---
 
 ## 🤔 Why this pattern?
 
-A single OpenClaw agent that "does everything" hits two walls quickly:
+A single OpenClaw agent that "does everything" hits two walls fast:
 
-1. 🧱 **Context bloat.** Every tool, every memory, every skill loads on every turn. Trivial routing decisions pay the same token cost as deep domain work.
-2. 🪞 **No real specialization.** Subagents share the parent's workspace and memory — isolation is conventional, not structural.
+1. 🧱 **Context bloat.** Every tool, every memory, every skill loads on every turn. Trivial routing pays the same token cost as deep domain work.
+2. 🪞 **No real specialisation.** Subagents share the parent's workspace and memory — isolation is conventional, not structural.
 
 ✨ This pattern solves both:
 
-- 🪶 The orchestrator stays lean: routing + light conversation + quick lookups (≤30s inline).
-- 🧱 Specialists are independent processes with their own contexts. Their memory and learning accumulate per-domain.
-- 🎯 Dispatch is one CLI command. Response is structured JSON. The orchestrator handles the synthesis.
+- 🪶 The Nexus stays lean: routing + light conversation + quick lookups (≤ 30 s inline).
+- 🧱 Tendrils are independent processes with their own contexts. Memory and learning accumulate per-domain.
+- 🎯 Dispatch is one CLI command. Response is structured JSON. The Nexus handles synthesis.
 
 ---
 
-## 📋 Optional: Linear oversight
+## 📋 Optional: Linear oversight (Anchoring + ticket lifecycle)
 
-[Linear](https://linear.app) gives the operator a live view of what the orchestrator is doing. Wire it up and every non-trivial dispatch creates:
+[Linear](https://linear.app) gives the operator a live view of what the Nexus is doing. Wire it up and every non-trivial Pulse creates:
 
 - 🗂️ a **parent ticket** per operator request,
-- 📌 a **sub-ticket** per specialist dispatch,
-- 💬 **comments** with each specialist's reply,
-- 🚦 **state transitions** (In Progress → Done) tracking the lifecycle.
+- 📌 a **sub-ticket** per Tendril dispatch,
+- 💬 **comments** with each Tendril's reply,
+- 🚦 **state transitions** (In Progress → Done).
 
-🤫 Trivial inline-handled requests (jokes, weather, ≤30s lookups) don't get tickets, so the board doesn't fill with noise.
+🤫 Trivial inline-handled requests (jokes, weather, ≤ 30 s lookups) don't get tickets, so the board doesn't fill with noise.
 
-Setup is in [orchestrator/LINEAR.md](orchestrator/LINEAR.md). CLI is [tools/linear-ticket](tools/linear-ticket) (Node ≥ 20, built-ins only — no `npm install` needed for this file to run).
+Setup: [`orchestrator/LINEAR.md`](orchestrator/LINEAR.md). CLI: [`tools/linear-ticket`](tools/linear-ticket) (Node ≥ 20, built-ins only — no `npm install` needed to run it).
 
 ---
 
-## 🧠 Durable orchestration with **ASO** (Agentic Swarm Orchestrator)
+## 🧠 Durable orchestration with **VINES**
 
-The orchestrator pattern above is stateless: a crash mid-flight loses the plan. **ASO** is an optional Node/TypeScript library bundled in this repo that adds **durable state in MariaDB + Linear-backed recovery** to the same pattern, implemented from the canonical [`aso/spec.md`](aso/spec.md).
+The Nexus + Tendrils pattern above is stateless: a crash mid-Pulse loses the plan. **VINES** is an optional Node/TypeScript library that adds **durable state in MariaDB + Linear-backed recovery** to the same pattern, implemented from the canonical [`vines/spec.md`](vines/spec.md).
 
 What you get:
 
 - 💾 **Survives restarts.** A single `orchestration_ledger` row per request; recovery scans for unfinished runs on startup and cross-references Linear for the resume point.
-- 🚦 **Activation gate.** Spec §3.1: protocol fires when work is estimated > 30 s **or** spans > 2 specialist domains. Trivial inline requests bypass it.
-- 🔍 **Operator visibility.** `aso status` and `aso recover` give a live view of the swarm without opening Linear.
+- 🩸 **Sensitivity Check gate.** Spec §3.1: protocol fires only when work is estimated > 30 s **or** spans > 2 specialist domains. Trivial requests bypass it.
+- 🔍 **Operator visibility.** `vines status` and `vines recover` give a live view of the swarm without opening Linear.
 - 🧪 **Quality bar.** Strict TypeScript, vitest with 99 % statement coverage, ESLint + Prettier + shellcheck enforced in CI.
 
 Install (after MariaDB is available — local or cloud):
@@ -199,25 +218,25 @@ Install (after MariaDB is available — local or cloud):
 ```bash
 make install                             # npm ci / npm install
 make build                               # compile TypeScript → dist/
-export MARIADB_URL=mariadb://h:3306/orchestra
-export MARIADB_USER=orchestra
+export MARIADB_URL=mariadb://h:3306/hawkins
+export MARIADB_USER=hawkins
 export MARIADB_PASSWORD=...
 export LINEAR_API_KEY=lin_api_...
-make bootstrap-db                        # apply aso/schema.sql
-npx aso status                           # confirm the ledger is reachable
+make bootstrap-db                        # apply vines/schema.sql
+npx vines status                         # confirm the ledger is reachable
 ```
 
-The spec, the schema, and every env var are documented in [`aso/spec.md`](aso/spec.md). The library API surface (CLI + importable `Orchestrator` / `Ledger` / `LinearClient`) is in [`src/`](src/).
+Full env-var matrix and the worked end-to-end agent integration sequence: [`INSTALL.md §9`](INSTALL.md). Library + CLI API: [`src/`](src/).
 
 ---
 
-## ➕ Adding a new specialist
+## ➕ Adding a new Tendril
 
-1. 🆔 Pick an id (kebab-case, e.g. `media-agent`).
-2. 🏗️ Create the agent: `openclaw agents add media-agent --non-interactive --model <model> --workspace ~/.openclaw/agents/media-agent/workspace`
-3. 📝 Drop in an `AGENTS.md` (use any specialist's as a starting point — same structure, different scope).
-4. 🎭 Personalize `IDENTITY.md`.
-5. 📚 Add it to the registry table in `~/.openclaw/workspace/AGENTS.md` (your orchestrator's workspace doc).
+1. 🆔 Pick a functional id (kebab-case, e.g. `media-agent`).
+2. 🏗️ `openclaw agents add media-agent --non-interactive --model <model> --workspace ~/.openclaw/agents/media-agent/workspace`
+3. 📝 Drop in an `AGENTS.md` (start from any specialist's as a template).
+4. 🎭 Personalise `IDENTITY.md`.
+5. 📚 Add it to the registry table in `~/.openclaw/workspace/AGENTS.md` (your Nexus's workspace doc).
 6. 🔄 Restart gateway. 🧪 Smoke-test.
 
 ---
@@ -225,7 +244,7 @@ The spec, the schema, and every env var are documented in [`aso/spec.md`](aso/sp
 ## 📁 Repository layout
 
 ```
-openclaw-orchestra/
+openclaw-hawkins/
 ├── 🤖 SKILL.md                 # AI agent installer manifest
 ├── 📖 README.md                # You are here
 ├── 📘 INSTALL.md               # Detailed human install guide
@@ -235,49 +254,51 @@ openclaw-orchestra/
 ├── ⚖️  LICENSE                 # MIT
 ├── 🧰 Makefile                 # Operator + developer entrypoints
 ├── 📦 package.json             # npm package metadata, scripts, deps
-├── 🧠 aso/                     # ASO library — canonical contract
+├── 🩸 docs/                    # Brand + workflow vocabulary
+│   ├── branding.md             # Naming + tone + colors (canonical)
+│   ├── pulse-protocol.md       # Phase-by-phase workflow reference
+│   └── colors.json             # Design tokens
+├── 🧠 vines/                   # VINES subsystem — canonical contract
 │   ├── spec.md                 # The specification (source of truth)
 │   └── schema.sql              # `orchestration_ledger` table
-├── 🧱 src/                     # ASO TypeScript implementation
+├── 🧱 src/                     # VINES TypeScript implementation
 │   ├── persistence.ts          # MariaDB ledger CRUD
 │   ├── linear-client.ts        # Linear GraphQL client
 │   ├── dispatcher.ts           # openclaw agent --json wrapper
-│   ├── orchestrator.ts         # §3 protocol engine + §3.1 triage
+│   ├── orchestrator.ts         # §3 protocol engine + §3.1 Sensitivity Check
 │   ├── recovery.ts             # §4.2 cross-reference + resume
-│   └── cli.ts                  # `aso` CLI
+│   └── cli.ts                  # `vines` CLI
 ├── 🧪 tests/                   # vitest suites; coverage gated in CI
-├── 🎼 orchestrator/            # Goes into your main agent's workspace
+├── 🎼 orchestrator/            # Goes into your Nexus's workspace
 │   ├── AGENTS.md               # Dispatch protocol + architecture
 │   ├── TOOLS.md.template       # Tool surface (template)
-│   ├── IDENTITY.md.template    # Orchestrator identity (template)
+│   ├── IDENTITY.md.template    # Nexus identity (template)
 │   └── LINEAR.md               # Optional ticket oversight protocol
-├── 🎭 agents/                  # One subdir per specialist
+├── 🎭 agents/                  # One subdir per Tendril
 │   ├── system-agent/   🔧
-│   │   ├── AGENTS.md           # Scoped persona
-│   │   └── IDENTITY.md.template
 │   ├── code-agent/     ⌨️
 │   ├── research-agent/ 🔍
 │   ├── data-agent/     📊
 │   ├── comm-agent/     ✉️
 │   └── vision-agent/   👁️
-├── 🧩 skills/                  # Per-specialist skill manifests
+├── 🧩 skills/                  # Per-Tendril skill manifests
 ├── 🛠️  tools/
 │   ├── linear-ticket           # Linear CLI (Node, built-ins only)
 │   └── linear.json.template    # Linear config template
 └── 🚀 scripts/
-    ├── setup.sh                # Specialist-agent bootstrap
-    └── bootstrap-aso-db.sh     # Apply aso/schema.sql via mariadb client
+    ├── setup.sh                # Tendril bootstrap
+    └── bootstrap-vines-db.sh   # Apply vines/schema.sql via mariadb client
 ```
 
 ---
 
 ## 📐 Conventions
 
-- 🗣️ **Orchestrator = the only conversational endpoint.** The operator talks only to the orchestrator. Specialists never address the operator directly.
-- ⏱️ **30-second rule.** Anything the orchestrator can answer in ≤30s of inline tool use → answer inline. Everything else → dispatch.
-- 🚦 **Parallel cap.** No more than 2 specialist dispatches in flight at once. Sequential by default.
-- 🩹 **Failure handling.** Specialist timeouts and errors get surfaced in plain language with next-step options. No raw stack traces at the operator.
-- 🔒 **No secrets** in tickets, comments, or specialist replies passed through. Truncate or redact before logging.
+- 🗣️ **Nexus = the only conversational endpoint.** The operator talks only to the Nexus. Tendrils never address the operator directly.
+- ⏱️ **30-second rule.** Anything the Nexus can answer in ≤ 30 s of inline tool use → answer inline. Everything else → The Connection.
+- 🚦 **Parallel cap.** No more than 2 Tendril dispatches in flight at once. Sequential by default.
+- 🩹 **Failure handling.** Tendril timeouts and errors get surfaced in plain language with next-step options. No raw stack traces at the operator.
+- 🔒 **No secrets** in tickets, comments, or Tendril replies. Truncate or redact before logging.
 
 ---
 
@@ -285,14 +306,14 @@ openclaw-orchestra/
 
 Each badge at the top of this README maps to a real, enforced gate:
 
-| Badge                         | What it guarantees                                                                                                                                                                                              |
-| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 🟢 **CI**                     | Every push and PR runs the full pipeline below on Node 20 and 22. PRs cannot merge red.                                                                                                                         |
-| 📊 **Coverage**               | `vitest --coverage` with v8 — gated at **statements ≥ 95 %, functions ≥ 95 %, branches ≥ 90 %, lines ≥ 95 %**. Falling below these fails CI. Latest run: statements 99.14 %, functions 100 %, branches 92.77 %. |
-| 📘 **TypeScript: strict**     | `tsconfig.json` enables `strict`, `noUnusedLocals`, `noUnusedParameters`, `exactOptionalPropertyTypes`, `useUnknownInCatchVariables`, `noImplicitOverride`.                                                     |
-| 💅 **Code style: Prettier**   | `npm run format:check` runs in CI.                                                                                                                                                                              |
-| 🧹 **Lint: ESLint**           | Flat config with `typescript-eslint` _recommended-type-checked_. PRs with lint errors fail CI.                                                                                                                  |
-| 🐚 **(Hidden)** Shell scripts | `shellcheck` runs against `scripts/` in CI.                                                                                                                                                                     |
+| Badge                         | What it guarantees                                                                                                                                          |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 🟢 **CI**                     | Every push and PR runs the full pipeline on Node 20 and 22. PRs can't merge red.                                                                            |
+| 📊 **Coverage**               | `vitest --coverage` with v8 — gated at **statements ≥ 95 %, functions ≥ 95 %, branches ≥ 90 %, lines ≥ 95 %**. Falling below fails CI.                      |
+| 📘 **TypeScript: strict**     | `tsconfig.json` enables `strict`, `noUnusedLocals`, `noUnusedParameters`, `exactOptionalPropertyTypes`, `useUnknownInCatchVariables`, `noImplicitOverride`. |
+| 💅 **Code style: Prettier**   | `npm run format:check` runs in CI.                                                                                                                          |
+| 🧹 **Lint: ESLint**           | Flat config with `typescript-eslint` _recommended-type-checked_. PRs with lint errors fail CI.                                                              |
+| 🐚 **(Hidden)** shell scripts | `shellcheck` runs against `scripts/` in CI.                                                                                                                 |
 
 ### Run the suites locally
 
@@ -304,15 +325,15 @@ make smoke             # smoke tests against real MariaDB / Linear / openclaw
                        # (auto-skipped when env vars are absent — see CONTRIBUTING.md)
 ```
 
-The smoke suite under `tests/smoke/` exists _in addition_ to the hermetic unit suite. It's gated on env-var presence (`MARIADB_URL`, `LINEAR_API_KEY`, …) so contributors can run `make check` safely without any secrets while operators can verify the wiring end-to-end with real services.
+The smoke suite under `tests/smoke/` exists _in addition_ to the hermetic unit suite. It's gated on env-var presence (`MARIADB_URL`, `LINEAR_API_KEY`, …) so contributors can run `make check` safely without secrets while operators can verify the wiring end-to-end with real services.
 
 ---
 
 ## ⭐ One more thing
 
-If `openclaw-orchestra` saved you from a tangled single-agent setup, **please [star the repo](https://github.com/parijatmukherjee/openclaw-orchestra/stargazers)** — it's the only signal I get that the pattern is landing for people, and it surfaces it to other OpenClaw operators. 🙏
+If `openclaw-hawkins` saved you from a tangled single-agent setup, **please [star the repo](https://github.com/parijatmukherjee/openclaw-hawkins/stargazers)** — it's the only signal I get that the pattern is landing, and it surfaces it to other OpenClaw operators. 🩸
 
-PRs welcome too. Especially: async dispatch, per-agent skill scoping, alternative ticket backends (GitHub Issues / Notion / Plane), and adapters for other agent runtimes.
+PRs welcome too. Especially: **VECNA** (the knowledge-sharing Hive subsystem, coming next), async dispatch, per-Tendril skill scoping, alternative ticket backends (GitHub Issues / Notion / Plane), and adapters for other agent runtimes.
 
 ---
 
@@ -324,8 +345,8 @@ PRs welcome too. Especially: async dispatch, per-agent skill scoping, alternativ
 
 ## 🙏 Credits
 
-🌱 Pattern crystallized while wrestling with a single-agent setup that kept hitting context limits.
+🌱 Pattern crystallised while wrestling with a single-agent setup that kept hitting context limits.
 
-🧩 The agent-skill manifests in `skills/` are adapted from the [agent-orchestrator](https://github.com/lcp14262/agent-orchestrator) ClawHub skill (MIT-0) by lcp14262.
+🧩 The Tendril-skill manifests in `skills/` are adapted from the [agent-orchestrator](https://github.com/lcp14262/agent-orchestrator) ClawHub skill (MIT-0) by lcp14262.
 
-🦞 OpenClaw is at [openclaw.ai](https://openclaw.ai).
+🦞 OpenClaw is at [openclaw.ai](https://openclaw.ai). The Stranger Things brand vocabulary belongs to Netflix and the Duffer Brothers; this repo uses it as homage only.
