@@ -106,9 +106,19 @@ jobs:
       - name: Install ClawHub CLI
         run: npm install -g clawhub
 
-      - name: Publish to ClawHub (explicit --family code-plugin → npm-pack artifact)
+      - name: Write ClawHub auth config (the CLI doesn't read CLAWHUB_TOKEN directly)
         env:
           CLAWHUB_TOKEN: ${{ secrets.CLAWHUB_TOKEN }}
+        run: |
+          install -m 700 -d "$RUNNER_TEMP"
+          jq -n --arg token "$CLAWHUB_TOKEN" \
+                --arg registry "https://clawhub.ai" \
+                '{registry: $registry, token: $token}' \
+            > "$RUNNER_TEMP/clawhub-config.json"
+          chmod 600 "$RUNNER_TEMP/clawhub-config.json"
+          echo "CLAWHUB_CONFIG_PATH=$RUNNER_TEMP/clawhub-config.json" >> "$GITHUB_ENV"
+
+      - name: Publish to ClawHub (explicit --family code-plugin → npm-pack artifact)
         run: |
           set -euo pipefail
           TAG_RAW="${GITHUB_REF_NAME:-${{ inputs.tag }}}"
