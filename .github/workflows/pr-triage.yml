@@ -1,0 +1,111 @@
+name: PR triage
+
+# Auto-closes the clearest promotional / mass-generated drive-by PRs.
+# Enforces CONTRIBUTING.md -> "Strict PR guidelines".
+#
+# Security: this uses `pull_request_target` so it can comment on and close PRs,
+# but it NEVER checks out or runs PR code. It only reads PR metadata and the
+# diff *text* through the event payload and the `gh` API. Do not add a checkout
+# step to this workflow.
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Flag and close promotional / drive-by PRs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          # branch + author association come straight from the event payload
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+          AUTHOR_ASSOC: ${{ github.event.pull_request.author_association }}
+        run: |
+          set -euo pipefail
+
+          # maintainers are never auto-triaged
+          case "$AUTHOR_ASSOC" in
+            OWNER|MEMBER|COLLABORATOR)
+              echo "Author is a maintainer ($AUTHOR_ASSOC) - skipping."
+              exit 0 ;;
+          esac
+
+          # files + labels via the API (no PR code is checked out)
+          meta=$(gh pr view "$PR" --repo "$REPO" --json files,labels)
+
+          # already triaged? (avoids re-acting on `synchronize`)
+          if echo "$meta" | jq -e '[.labels[].name] | index("auto-closed: promotional")' >/dev/null; then
+            echo "Already labelled - skipping."
+            exit 0
+          fi
+
+          # --- heuristic 1: AI-agent branch prefix ---
+          if ! echo "$BRANCH" | grep -qiE '^(codex|cursor|devin|copilot|bot|agent)/'; then
+            echo "Branch '$BRANCH' is not an agent prefix - skipping."
+            exit 0
+          fi
+
+          # --- heuristic 2: every changed file is documentation ---
+          non_docs=$(echo "$meta" | jq -r \
+            '[.files[].path | select((test("\\.(md|mdx)$") or startswith("docs/")) | not)] | length')
+          if [ "$non_docs" -ne 0 ]; then
+            echo "PR touches non-doc files - skipping."
+            exit 0
+          fi
+
+          # --- heuristic 3: added lines carry a promotional signal ---
+          added=$(gh pr diff "$PR" --repo "$REPO" --patch \
+            | grep '^+' | grep -v '^+++' || true)
+
+          promo=""
+          if echo "$added" | grep -qiE 'npm install|npm i |plugins install|npmjs\.com/package'; then
+            promo="install / registry command"
+          fi
+          # external markdown links to non-allowlisted hosts
+          ext=$(echo "$added" \
+            | grep -oiE '\]\(https?://[^) ]+' \
+            | sed -E 's#\]\(https?://##; s#/.*##' \
+            | grep -viE '^(www\.)?(github\.com|openclaw\.ai|parijatmukherjee\.com|hawkins\.parijatmukherjee\.com)$' \
+            | sort -u || true)
+          if [ -n "$ext" ]; then
+            promo="external link(s): $(echo "$ext" | tr '\n' ' ')"
+          fi
+
+          if [ -z "$promo" ]; then
+            echo "No promotional signal in added lines - skipping."
+            exit 0
+          fi
+
+          # --- all three heuristics matched: comment, label, close ---
+          echo "Match: branch=$BRANCH, docs-only, promo=$promo"
+
+          body=$(printf '%s\n' \
+            'Closing automatically.' \
+            '' \
+            'This PR matches the **promotional / mass-generated drive-by** pattern that' \
+            '[CONTRIBUTING.md -> Strict PR guidelines](https://github.com/parijatmukherjee/openclaw-hawkins/blob/main/CONTRIBUTING.md#strict-pr-guidelines)' \
+            'says we close without review:' \
+            '' \
+            '- the branch uses an AI-agent prefix (`codex/`, `cursor/`, ...),' \
+            '- it changes documentation only, and' \
+            '- it adds install commands or external product links.' \
+            '' \
+            'We decide independently what to recommend in our docs. If this was' \
+            'caught wrongly, open an issue and we will take a look - no hard feelings.')
+
+          gh pr comment "$PR" --repo "$REPO" --body "$body"
+
+          gh label create "auto-closed: promotional" --repo "$REPO" \
+            --color B60205 --description "Closed by PR triage as promotional / drive-by" \
+            2>/dev/null || true
+          gh pr edit "$PR" --repo "$REPO" --add-label "auto-closed: promotional"
+          gh pr close "$PR" --repo "$REPO"
