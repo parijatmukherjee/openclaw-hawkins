@@ -441,6 +441,6 @@ PRs welcome too. Especially: **OpenClaw plugin packaging** (tracked in [#2](http
 
 🌱 Pattern crystallised while wrestling with a single-agent setup that kept hitting context limits.
 
-🧩 The Tendril-skill manifests in `skills/` are adapted from the [agent-orchestrator](https://github.com/lcp14262/agent-orchestrator) ClawHub skill (MIT-0) by lcp14262.
+🧩 The Tendril-skill manifests in `skills/` are adapted from the `agent-orchestrator` ClawHub skill (MIT-0) by lcp14262.
 
 🦞 OpenClaw is at [openclaw.ai](https://openclaw.ai). The Stranger Things brand vocabulary belongs to Netflix and the Duffer Brothers; this repo uses it as homage only.
