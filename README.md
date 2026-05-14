@@ -4,6 +4,7 @@
 
 # 🩸 Openclaw Hawkins — Multi-Agent Orchestration for OpenClaw
 
+[![Website](https://img.shields.io/badge/site-hawkins.parijatmukherjee.com-E60000?logo=googlechrome&logoColor=white)](https://hawkins.parijatmukherjee.com/)
 [![CI](https://github.com/parijatmukherjee/openclaw-hawkins/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/parijatmukherjee/openclaw-hawkins/actions/workflows/ci.yml)
 [![Coverage](https://codecov.io/gh/parijatmukherjee/openclaw-hawkins/branch/main/graph/badge.svg)](https://codecov.io/gh/parijatmukherjee/openclaw-hawkins)
 [![Node](https://img.shields.io/badge/node-%E2%89%A520-43853d?logo=node.js&logoColor=white)](https://nodejs.org)
@@ -16,6 +17,8 @@
 > **Everything is Connected.**
 
 A multi-agent orchestration pattern — **demonstrated on [OpenClaw](https://openclaw.ai)** — where one conversational orchestrator (**the Nexus**) coordinates six isolated specialist agents (**the Tendrils**), with durable state that survives restarts (**VINES**) and decay-aware shared memory (**VECNA**). The brand vocabulary is [Stranger Things](https://www.netflix.com/title/80057281)–coloured; the protocol is grounded engineering.
+
+> 🌐 **Project site:** [hawkins.parijatmukherjee.com](https://hawkins.parijatmukherjee.com/) — the canonical landing page for openclaw-hawkins.
 
 > ⭐ **Find this useful?** Star the repo — it surfaces the pattern to other OpenClaw operators and tells me whether to keep iterating. 🩸
 
