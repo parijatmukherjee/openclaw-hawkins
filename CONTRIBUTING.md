@@ -37,6 +37,29 @@ We are cautious about PRs that:
 - Introduce LLM-specific behaviour at the library layer. The library should
   remain transport-agnostic (see [Architecture](#architecture) below).
 
+## Strict PR guidelines
+
+Some PRs we close **without review**. Opening one of these is not a
+contribution — it costs maintainer time and clutters the tracker. We close,
+unreviewed:
+
+- **Promotional / third-party-product PRs.** PRs whose real purpose is to slot
+  links, install commands, or marketing for an external product or service into
+  our docs. We decide independently what to recommend.
+- **Mass or AI-generated drive-by PRs.** Templated PRs fired across many repos,
+  agent-generated branches (`codex/*`, `cursor/*`, `devin/*`, …) with no
+  project-specific need and no linked issue.
+- **PRs that bundle unrelated changes.** A PR does one thing. Quietly mixing in
+  edits beyond the stated scope — e.g. rewriting attribution or credit links
+  inside a "docs" PR — gets the whole PR closed.
+- **Unsolicited large or scope-less PRs.** Anything non-trivial needs an issue
+  or discussion _first_, so we can agree on the approach before you spend the
+  effort.
+
+A GitHub Action (`.github/workflows/pr-triage.yml`) auto-closes the clearest
+promotional / drive-by cases on sight. If yours was caught wrongly, open an
+issue and we'll take a look — no hard feelings.
+
 ## Development workflow
 
 ```bash

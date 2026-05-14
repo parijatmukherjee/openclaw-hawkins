@@ -427,7 +427,7 @@ The smoke suite under `tests/smoke/` exists _in addition_ to the hermetic unit s
 
 If `openclaw-hawkins` saved you from a tangled single-agent setup, **please [star the repo](https://github.com/parijatmukherjee/openclaw-hawkins/stargazers)** — it's the only signal I get that the pattern is landing, and it surfaces it to other OpenClaw operators. 🩸
 
-PRs welcome too. Especially: **OpenClaw plugin packaging** (tracked in [#2](https://github.com/parijatmukherjee/openclaw-hawkins/issues/2)), async dispatch, per-Tendril skill scoping, alternative ticket backends (GitHub Issues / Notion / Plane), and adapters for other agent runtimes.
+PRs welcome too — most useful right now: **OpenClaw plugin packaging** (tracked in [#2](https://github.com/parijatmukherjee/openclaw-hawkins/issues/2)), async dispatch, per-Tendril skill scoping, alternative ticket backends (GitHub Issues / Notion / Plane), and adapters for other agent runtimes. Read [CONTRIBUTING.md](CONTRIBUTING.md) first — non-trivial changes need an issue, and promotional or mass-generated drive-by PRs are closed on sight (see [Strict PR guidelines](CONTRIBUTING.md#strict-pr-guidelines)).
 
 ---
 
