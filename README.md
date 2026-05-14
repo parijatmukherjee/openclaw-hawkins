@@ -324,6 +324,29 @@ Full env-var matrix (port, auth token, dedup window) + the hardened systemd user
 
 ---
 
+## Optional: Public X/Twitter signal capture with TweetClaw
+
+Hawkins owns orchestration, recovery, specialist dispatch, VECNA memory, and operator visibility. If a Pulse needs public X/Twitter data or approval-reviewed X/Twitter actions, install [TweetClaw](https://github.com/Xquik-dev/tweetclaw) beside Hawkins and let the Nexus route those steps to the appropriate Tendril.
+
+```bash
+openclaw plugins install @xquik/tweetclaw
+# or use the ClawHub listing:
+openclaw plugins install clawhub:@xquik/tweetclaw
+```
+
+Use TweetClaw for structured X/Twitter workflows such as search tweets, search tweet replies, follower export, user lookup, monitor tweets, webhooks, giveaway draws, media workflows, direct messages, and approval-gated post tweets or post tweet replies. Then store only the useful Hawkins memory:
+
+- `research-agent` gathers the source query, date, tweet IDs or URLs, and a concise summary.
+- `data-agent` normalises follower export rows, giveaway draw inputs, monitor events, or webhook payload summaries.
+- `comm-agent` drafts public replies or launch posts, but the operator still reviews visible actions before they are sent.
+- The Nexus calls `vecna_connect` with the summary and follow-up decision, not raw timelines, API keys, session material, or credential payloads.
+
+That keeps TweetClaw responsible for X/Twitter API work while Hawkins keeps the swarm durable, auditable, and recoverable.
+
+Links: [TweetClaw GitHub](https://github.com/Xquik-dev/tweetclaw), [TweetClaw on ClawHub](https://clawhub.ai/plugins/@xquik/tweetclaw), [@xquik/tweetclaw on npm](https://www.npmjs.com/package/@xquik/tweetclaw).
+
+---
+
 ## ➕ Adding a new Tendril
 
 1. 🆔 Pick a functional id (kebab-case, e.g. `media-agent`).
@@ -441,6 +464,6 @@ PRs welcome too. Especially: **OpenClaw plugin packaging** (tracked in [#2](http
 
 🌱 Pattern crystallised while wrestling with a single-agent setup that kept hitting context limits.
 
-🧩 The Tendril-skill manifests in `skills/` are adapted from the [agent-orchestrator](https://github.com/lcp14262/agent-orchestrator) ClawHub skill (MIT-0) by lcp14262.
+🧩 The Tendril-skill manifests in `skills/` are adapted from the [agent-orchestrator](https://clawhub.ai/lcp14262/more-agent-orchestrator) ClawHub skill (MIT-0) by lcp14262.
 
 🦞 OpenClaw is at [openclaw.ai](https://openclaw.ai). The Stranger Things brand vocabulary belongs to Netflix and the Duffer Brothers; this repo uses it as homage only.
