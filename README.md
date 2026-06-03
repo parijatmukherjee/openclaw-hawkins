@@ -100,6 +100,21 @@ openclaw config set plugins.entries.openclaw-hawkins.config.mariadb.ssl  "insecu
 
 🔒 **Secrets policy:** `MARIADB_PASSWORD` and `LINEAR_API_KEY` are read from the gateway's environment only — never from `openclaw.json`. The plugin's config schema deliberately rejects them. Wire them via a 0600 systemd `EnvironmentFile` (the post-install banner shows the exact recipe), or feed them from 1Password using the SKILL.md recipe.
 
+🌐 **Behind a firewall / SSH-only DB?** The plugin has no awareness of the network path — it just connects to whatever `mariadb.url` resolves to. If your MariaDB sits behind a bastion or has 3306 closed publicly, bring a tunnel up as its own systemd unit and point the plugin at the loopback endpoint:
+
+```bash
+# 1. Run the tunnel as a long-lived service (autossh restarts it on drop)
+autossh -M 0 -N -L 3306:127.0.0.1:3306 user@bastion
+
+# 2. Plugin config — host is the tunnel endpoint, not the remote
+openclaw config set plugins.entries.openclaw-hawkins.config.mariadb.url  "mariadb://127.0.0.1:3306/hawkins"
+openclaw config set plugins.entries.openclaw-hawkins.config.mariadb.ssl  "insecure"
+# `insecure` is the right TLS mode here: the server may still require TLS, but the
+# cert is for the remote hostname, so verifying it against 127.0.0.1 would fail.
+```
+
+Order the tunnel unit `Before=` your gateway unit so cron jobs that wrap their work in `vines_*`/`vecna_*` find the pool ready on first boot.
+
 ---
 
 ### 🤖 Let an AI agent install it for you
