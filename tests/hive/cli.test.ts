@@ -239,3 +239,23 @@ describe("vecna --help / unknown", () => {
     expect(rc).not.toBe(0);
   });
 });
+
+describe("vecna serve — ASI06 auth-by-default", () => {
+  const DBVARS = ["MARIADB_URL", "MARIADB_USER", "MARIADB_PASSWORD", "VECNA_ALLOW_INSECURE"];
+  afterEach(() => {
+    for (const k of DBVARS) delete process.env[k];
+  });
+
+  it("refuses to start without a token and without the insecure opt-in", async () => {
+    process.env.MARIADB_URL = "mariadb://h:3306/db";
+    process.env.MARIADB_USER = "u";
+    process.env.MARIADB_PASSWORD = "p";
+    // no VECNA_AUTH_TOKEN, no VECNA_ALLOW_INSECURE
+    const main = await importMain();
+    const out = captureOutput();
+    const rc = await main(["node", "vecna", "serve"]);
+    out.restore();
+    expect(rc).not.toBe(0);
+    expect(out.stderr()).toMatch(/Refusing to start VECNA without authentication/);
+  });
+});

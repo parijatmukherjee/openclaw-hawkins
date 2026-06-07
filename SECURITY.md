@@ -80,9 +80,8 @@ Operator guidance:
   reach the Hive port (default `127.0.0.1:8765`) could connect and evolve
   fragments — so the server fails fast with an actionable message instead of
   coming up unauthenticated. To deliberately run an unauthenticated Hive (local
-  dev only), set `VECNA_ALLOW_INSECURE=1`; the server then logs a loud warning on
-  every start. When a token is set, the HTTP server refuses any request lacking
-  the matching bearer.
+  dev only), set `VECNA_ALLOW_INSECURE=1`. When a token is set, the HTTP server
+  refuses any request lacking the matching bearer.
 - The `source_agent` field is recorded on every fragment. Review periodically
   via `vecna_search` and use `vecna_evolve` to supersede stale entries.
 - Decay handling (built-in): entries older than 6 months without
@@ -139,7 +138,7 @@ means the operator retains control and the docs steer them to the safe choice
 
 | Finding                                    | Severity | Mitigation                                                                                                                                                           | Status       |
 | ------------------------------------------ | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
-| **ASI06** Memory & context poisoning       | Medium   | `vecna serve` refuses to start without `VECNA_AUTH_TOKEN` unless `VECNA_ALLOW_INSECURE=1` (loud warning). Bind to loopback; review/deprecate fragments via `vecna_evolve`. | **Enforced** |
+| **ASI06** Memory & context poisoning       | Medium   | `vecna serve` refuses to start without `VECNA_AUTH_TOKEN` unless `VECNA_ALLOW_INSECURE=1`. Bind to loopback; review/deprecate fragments via `vecna_evolve`. | **Enforced** |
 | **ASI03** Identity & privilege abuse       | Medium   | Use a Linear **OAuth token scoped to one team**, not a full personal key; review the first tickets after setup. See "Linear API integration" above.                  | Guidance     |
 | **ASI02** Tool misuse & exploitation       | Low      | Allowlist the 12 `vines_*`/`vecna_*` tools only to the intended Hawkins agents in your OpenClaw config; require human review for sensitive mutations where supported. | Guidance     |
 | **ASI07** Insecure inter-agent comms       | Low      | Never put secrets in tool args/messages; the configSchema rejects `mariadb.password` / `linear.apiKey`, forcing them through the gateway env. See "Inter-agent dispatch" above. | Enforced + guidance |

@@ -205,13 +205,6 @@ async function serve(opts: { port?: number; host?: string }): Promise<number> {
         authRequired: env.authToken !== null,
         dedupWindowMinutes: env.dedupWindowMinutes,
       });
-      if (env.authToken === null) {
-        narrate(
-          "WARNING: VECNA is running WITHOUT authentication (VECNA_ALLOW_INSECURE). " +
-            "Any local process that can reach the port can read and evolve shared memory. " +
-            "Set VECNA_AUTH_TOKEN and remove VECNA_ALLOW_INSECURE for production.",
-        );
-      }
     });
     const shutdown = (signal: string): void => {
       narrate(`Nexus received ${signal}; closing`);
