@@ -130,4 +130,16 @@ describe("ASI06 — auth-by-default (parseAllowInsecure / assertServeAuthPosture
   it("allows serving without a token only when explicitly opted in", () => {
     expect(() => assertServeAuthPosture({ authToken: null, allowInsecure: true })).not.toThrow();
   });
+
+  it("rejects a whitespace-only VECNA_AUTH_TOKEN", () => {
+    withDb();
+    process.env.VECNA_AUTH_TOKEN = "   ";
+    expect(() => loadVecnaServerConfig()).toThrow(/must be non-empty/);
+  });
+
+  it("trims surrounding whitespace from VECNA_AUTH_TOKEN", () => {
+    withDb();
+    process.env.VECNA_AUTH_TOKEN = "  secret  ";
+    expect(loadVecnaServerConfig().authToken).toBe("secret");
+  });
 });

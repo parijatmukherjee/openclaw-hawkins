@@ -105,8 +105,12 @@ export function loadVecnaClientConfig(env: NodeJS.ProcessEnv = process.env): Cli
 function resolveVecnaBearer(env: NodeJS.ProcessEnv): string | null {
   const raw = env.VECNA_AUTH_TOKEN;
   if (raw === undefined) return null;
-  if (raw.length === 0) {
-    throw new Error("VECNA_AUTH_TOKEN, when set, must be non-empty");
+  // Trim and reject whitespace-only tokens: a blank-after-trim value would
+  // otherwise pass and let the Hive start with an effectively empty bearer,
+  // defeating the auth-by-default posture (ASI06).
+  const trimmed = raw.trim();
+  if (trimmed.length === 0) {
+    throw new Error("VECNA_AUTH_TOKEN, when set, must be non-empty (not only whitespace)");
   }
-  return raw;
+  return trimmed;
 }
