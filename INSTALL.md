@@ -144,10 +144,14 @@ If you want a Linear board where every non-trivial operator request shows up as 
 3. Fetch your team ID and workflow state UUIDs:
 
    Read the key from your environment — don't paste the literal token into the
-   command (it would land in your shell history):
+   command (it would land in your shell history). Load it without echoing it:
 
    ```bash
-   export LINEAR_API_KEY="lin_api_..."   # set once, e.g. from 1Password; not committed
+   # Option A — paste once at a silent prompt (not stored in history):
+   read -rs LINEAR_API_KEY && export LINEAR_API_KEY
+   # Option B — pull it straight from 1Password:
+   #   export LINEAR_API_KEY="$(op item get Linear --fields label=token --reveal)"
+
    curl -s -X POST https://api.linear.app/graphql \
      -H "Authorization: $LINEAR_API_KEY" \
      -H "Content-Type: application/json" \
