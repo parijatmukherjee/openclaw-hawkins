@@ -4,11 +4,11 @@
 # Reads the same env vars as the Node library (see vines/spec.md §5):
 #
 #   MARIADB_URL       e.g. mariadb://db.example.com:3306/orchestra
-#                          (credentials in the URL are honoured)
-#   MARIADB_USER      database user (overridden by URL creds if present)
-#   MARIADB_PASSWORD  password
-#   MARIADB_SSL       optional: disabled | preferred | required | insecure
-#                              default: preferred
+#                          (a username may be in the URL; a password may not)
+#   MARIADB_USER      database user (or the username embedded in the URL)
+#   MARIADB_PASSWORD  password (from the environment only, never in the URL)
+#   MARIADB_SSL       optional: disabled | preferred | required
+#                              default: preferred (always verifies the cert)
 #
 # Idempotent: schema.sql uses CREATE TABLE IF NOT EXISTS.
 
@@ -20,7 +20,7 @@ if [ -z "${MARIADB_URL:-}" ]; then
 fi
 
 # --- parse MARIADB_URL ------------------------------------------------------
-# Format: mariadb://[user[:pass]@]host[:port]/db
+# Format: mariadb://[user@]host[:port]/db  (a password in the URL is rejected)
 
 url="${MARIADB_URL#mariadb://}"
 url="${url#mysql://}"
@@ -41,24 +41,26 @@ if [[ "$hostport" == *:* ]]; then
   port="${hostport##*:}"
 fi
 
-# Decode percent-encoded `userinfo` so URLs like
-#   mariadb://u%40v:p%21ss@host/db
-# parse as `u@v` / `p!ss` rather than the literal escape sequences.
+# Decode the percent-encoded URL username so URLs like
+#   mariadb://u%40v@host/db
+# parse as `u@v` rather than the literal escape sequence.
 # Matches the Node loader's behaviour.
 urldecode() {
   local s="${1//+/ }"
   printf '%b' "${s//%/\\x}"
 }
 
+# The username may come from the URL; the password must not — it would be
+# exposed on the command line / in shell history. It always comes from the
+# environment. Matches the Node loader, which rejects a URL-embedded password.
 user="${MARIADB_USER:-}"
 password="${MARIADB_PASSWORD:-}"
 if [ -n "$userinfo" ]; then
-  raw_user="${userinfo%%:*}"
-  user="$(urldecode "$raw_user")"
   if [[ "$userinfo" == *:* ]]; then
-    raw_pass="${userinfo#*:}"
-    password="$(urldecode "$raw_pass")"
+    echo "error: MARIADB_URL must not contain a password; set MARIADB_PASSWORD instead" >&2
+    exit 2
   fi
+  user="$(urldecode "$userinfo")"
 fi
 
 if [ -z "$db" ]; then
@@ -66,11 +68,11 @@ if [ -z "$db" ]; then
   exit 2
 fi
 if [ -z "$user" ]; then
-  echo "error: missing MARIADB_USER (or embed user in URL)" >&2
+  echo "error: missing MARIADB_USER (or embed the username in URL)" >&2
   exit 2
 fi
 if [ -z "$password" ]; then
-  echo "error: missing MARIADB_PASSWORD (or embed password in URL)" >&2
+  echo "error: missing MARIADB_PASSWORD (set it in the environment)" >&2
   exit 2
 fi
 
@@ -86,10 +88,9 @@ fi
 ssl_args=()
 case "${MARIADB_SSL:-preferred}" in
   disabled) ssl_args+=("--ssl=0") ;;
-  insecure) ssl_args+=("--ssl" "--ssl-verify-server-cert=FALSE") ;;
-  preferred|required) ssl_args+=("--ssl") ;;
+  preferred|required) ssl_args+=("--ssl" "--ssl-verify-server-cert") ;;
   *)
-    echo "error: MARIADB_SSL must be disabled|preferred|required|insecure" >&2
+    echo "error: MARIADB_SSL must be disabled|preferred|required" >&2
     exit 2
     ;;
 esac

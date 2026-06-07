@@ -19,7 +19,7 @@ export interface HawkinsPluginConfig {
   mariadb?: {
     url?: string;
     user?: string;
-    ssl?: "disabled" | "preferred" | "required" | "insecure";
+    ssl?: "disabled" | "preferred" | "required";
   };
   autoRecovery?: boolean;
   vecna?: {

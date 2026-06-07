@@ -27,21 +27,31 @@ describe("loadDBConfig", () => {
     });
   });
 
-  it("URL credentials win over env vars", () => {
+  it("username in URL wins over env var; password always comes from env", () => {
     const cfg = loadDBConfig(
       withEnv({
-        MARIADB_URL: "mariadb://urluser:urlpass@h:3307/db",
+        MARIADB_URL: "mariadb://urluser@h:3307/db",
         MARIADB_USER: "env-user",
         MARIADB_PASSWORD: "env-pass",
       }),
     );
     expect(cfg.user).toBe("urluser");
-    expect(cfg.password).toBe("urlpass");
+    expect(cfg.password).toBe("env-pass");
     expect(cfg.port).toBe(3307);
   });
 
-  it("URL credentials are percent-decoded", () => {
-    const cfg = loadDBConfig(withEnv({ MARIADB_URL: "mariadb://u%40v:p%21ss@h/db" }));
+  it("rejects a password embedded in the URL (would land in plaintext config)", () => {
+    expect(() =>
+      loadDBConfig(
+        withEnv({ MARIADB_URL: "mariadb://urluser:urlpass@h/db", MARIADB_PASSWORD: "env-pass" }),
+      ),
+    ).toThrow(/must not contain a password/);
+  });
+
+  it("URL username is percent-decoded", () => {
+    const cfg = loadDBConfig(
+      withEnv({ MARIADB_URL: "mariadb://u%40v@h/db", MARIADB_PASSWORD: "p!ss" }),
+    );
     expect(cfg.user).toBe("u@v");
     expect(cfg.password).toBe("p!ss");
   });
@@ -129,20 +139,16 @@ describe("sslOptionFor", () => {
   it("disabled → false", () => {
     expect(sslOptionFor("disabled")).toBe(false);
   });
-  it("insecure SSL mode skips cert verification", () => {
-    const result = sslOptionFor("insecure");
-    // Validate shape without writing the scanner-flagged literal in the test
-    // file. The returned value must be a single-key object whose value is
-    // falsy.
-    expect(typeof result).toBe("object");
-    expect((result as Record<string, unknown>).rejectUnauthorized).toBeFalsy();
-    expect(Object.keys(result as Record<string, unknown>)).toEqual(["rejectUnauthorized"]);
-  });
-  it("preferred → rejectUnauthorized:true", () => {
+  it("preferred → verifies the server certificate", () => {
     expect(sslOptionFor("preferred")).toEqual({ rejectUnauthorized: true });
   });
-  it("required → rejectUnauthorized:true", () => {
+  it("required → verifies the server certificate", () => {
     expect(sslOptionFor("required")).toEqual({ rejectUnauthorized: true });
+  });
+  it("never returns a TLS mode that disables certificate verification", () => {
+    for (const mode of ["preferred", "required"] as const) {
+      expect(sslOptionFor(mode)).toEqual({ rejectUnauthorized: true });
+    }
   });
 });
 

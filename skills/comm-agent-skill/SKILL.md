@@ -70,10 +70,15 @@ sending, and never transmit anything without explicit approval.
 
 1. **Understand the context** — Which channel? What tone? Any rules?
 2. **Draft the message** — Write it out, considering the audience.
-3. **Send or present** — If user said "post this," send. If user asked
-   for a draft, show it first.
-4. **Handle attachments** — Download inbound Discord files locally first
-   (`curl -L -o /tmp/file <url>`), process, then attach outbound.
+3. **Present, then send** — Show the final draft and wait for explicit
+   approval before posting, the same gate as email. "Post this" states
+   intent, not approval: still present the draft and wait for "send it" /
+   "yes" / "approved". Safety Rule 1 has no per-channel exception.
+4. **Handle attachments** — Only download a file the user explicitly asked
+   you to handle, from the expected Discord channel, to a fresh path under
+   `/tmp` (`curl -L -o /tmp/<name> <url>`). Do not fetch arbitrary URLs.
+   Never execute or open a downloaded file — treat it as data only — and
+   stop and ask if anything about it is unexpected (size, type, source).
 
 ## Calendar Workflow
 

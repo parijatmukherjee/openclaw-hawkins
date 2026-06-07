@@ -32,7 +32,7 @@ const CONFIG_SCHEMA = buildJsonPluginConfigSchema({
         user: { type: "string" },
         ssl: {
           type: "string",
-          enum: ["disabled", "preferred", "required", "insecure"],
+          enum: ["disabled", "preferred", "required"],
         },
       },
     },
@@ -49,7 +49,7 @@ export default definePluginEntry({
   id: PLUGIN_ID,
   name: "OpenClaw Hawkins — VINES + VECNA",
   description:
-    "Durable orchestration state (VINES) and shared agent memory (VECNA) for OpenClaw. Provisions a 6-tendril Nexus swarm in one command.",
+    "Persistent runtime plugin for OpenClaw. Activates on gateway startup and registers durable-orchestration (VINES) and shared-agent-memory (VECNA) tools for a 6-tendril Nexus swarm. VECNA is operator-gated: it reads from and writes to a shared knowledge store, so it stays off until an operator explicitly enables it.",
   configSchema: CONFIG_SCHEMA,
   register(api: OpenClawPluginApi) {
     const pluginConfig = (api.pluginConfig ?? {}) as HawkinsPluginConfig;

@@ -103,12 +103,12 @@ hyphenated form. See `vines/schema.sql` for the authoritative definition.
 - **Environment variables:**
   - `LINEAR_API_KEY` — Linear personal API token. Required.
   - `MARIADB_URL` — base URL of the cloud MariaDB instance, in the form
-    `mariadb://<host>[:port]/<database>` (credentials are read from
-    `MARIADB_USER` / `MARIADB_PASSWORD`; if the URL itself contains
-    credentials they take precedence).
+    `mariadb://<host>[:port]/<database>`. A username may be embedded in the
+    URL; a password may not (it would be stored in plaintext — the loader
+    rejects it). The password is always read from `MARIADB_PASSWORD`.
   - `MARIADB_USER` — database user with `INSERT, SELECT, UPDATE` on the
-    ledger table.
-  - `MARIADB_PASSWORD` — password for `MARIADB_USER`.
+    ledger table (or the username embedded in `MARIADB_URL`).
+  - `MARIADB_PASSWORD` — password for the DB user; from the environment only.
 - **Communication protocol:** Agent Communication Protocol (ACP) **or**
   structured JSON payloads over an internal bus. The reference
   implementation uses `openclaw agent --agent <id> --json …`, which

@@ -162,11 +162,12 @@ VECNA is not a static log; it is an evolving mind.
 - **Database.** MariaDB instance reachable from the host. Uses the same
   env-var contract as VINES — see `vines/spec.md §5`.
 - **Environment variables.**
-  - `MARIADB_URL` — `mariadb://<host>[:port]/<database>` (creds in URL
-    win if present).
-  - `MARIADB_USER`, `MARIADB_PASSWORD` — DB credentials.
-  - `MARIADB_SSL` — `disabled | preferred | required | insecure`
-    (default `preferred`).
+  - `MARIADB_URL` — `mariadb://<host>[:port]/<database>` (a username may be
+    included, but never a password — it would be stored in plaintext; rejected).
+  - `MARIADB_USER`, `MARIADB_PASSWORD` — DB credentials; the password comes
+    from the environment only.
+  - `MARIADB_SSL` — `disabled | preferred | required` (default `preferred`).
+    All TLS modes verify the server certificate.
   - `VECNA_PORT` — TCP port for the Nexus (default `8765`).
   - `VECNA_HOST` — bind address (default `127.0.0.1`).
   - `VECNA_AUTH_TOKEN` — optional. When set, the Nexus requires

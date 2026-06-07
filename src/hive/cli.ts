@@ -1,6 +1,16 @@
 #!/usr/bin/env node
 /**
- * `vecna` — shell-callable surface for the VECNA Hive.
+ * `vecna` — shell-callable surface for the VECNA Hive (the optional shared
+ * knowledge store). This is a *runtime* tool, not part of installing
+ * openclaw-hawkins on a host: nothing here is invoked during install. It runs
+ * only when an operator has explicitly enabled VECNA.
+ *
+ * Trust boundaries: `recall`/`search`/`fragment` read content from the Hive
+ * (treat results as untrusted reference material). `connect`/`evolve` write
+ * task-derived content to a service outside the host — agents must get explicit
+ * operator approval before publishing (see each agent's AGENTS.md). `serve`
+ * starts a long-lived HTTP API and refuses to run unauthenticated unless the
+ * operator opts in (ASI06; see `assertServeAuthPosture`).
  *
  * Subcommands:
  *   serve [--port <n>] [--host <h>]          Start the Nexus.

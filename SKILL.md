@@ -3,32 +3,41 @@ name: openclaw-hawkins-installer
 description: |
   Installs openclaw-hawkins (multi-agent orchestration for OpenClaw — the
   Nexus + six Tendrils + VINES + optional VECNA Hive) on the current host.
-  Designed to run end-to-end without human supervision: each phase has
-  explicit detection, sensible defaults, backup-before-overlay, and
-  per-step verification. Use this skill when an operator asks to "install
-  openclaw-hawkins", "set up multi-agent orchestration", "deploy the
-  Tendrils", "wire up the agent swarm", "upgrade to openclaw-hawkins",
-  or similar.
+  This is a high-impact, host-modifying install: it writes persistent files,
+  installs a user systemd service, handles a database secret, restarts the
+  gateway, and enables a plugin that activates on every gateway startup.
+  Each phase has explicit detection, sensible defaults, backup-before-overlay,
+  and per-step verification. Trigger ONLY on an explicit, unambiguous request
+  to install/set up/upgrade openclaw-hawkins — confirm scope first if the
+  request is vague or could be conversational. Do not infer it from general
+  talk about agents or orchestration.
 ---
 
 # Skill: install openclaw-hawkins
 
 You are installing the [`openclaw-hawkins`](https://github.com/parijatmukherjee/openclaw-hawkins) multi-agent pattern on the host you have shell access to. The end state: one orchestrator (the **Nexus** — `agent:main`, typically yourself) coordinating six isolated specialist agents (the **Tendrils**: `system-agent`, `code-agent`, `research-agent`, `data-agent`, `comm-agent`, `vision-agent`), with optional **VINES** (durable orchestration state) and **VECNA** (Hive knowledge sharing).
 
-This skill is designed for **autonomous execution**. You do not require an operator to answer questions in real time — every decision point has a documented default. Where defaults are wrong, the failure mode is loud and recoverable.
+Once started, this skill runs **mostly unattended** — every routine decision point has a documented default, and where a default is wrong the failure mode is loud and recoverable. It is *not* unsupervised carte blanche: it must get the operator's go-ahead before it begins making changes, and it stops to ask before anything outside the documented defaults.
+
+> ⚠️ **Before you start — what this install changes on the host.** Surface this to the operator and get an explicit go-ahead before Phase 1:
+> - Writes persistent files under `$HOME/.openclaw` (agent workspaces, `AGENTS.md` overlays, backups).
+> - Installs a **user systemd service** and an `EnvironmentFile`, and **restarts the OpenClaw gateway**.
+> - Handles a **database password** (read from 1Password or the env into a `0600` file; never written to `openclaw.json`).
+> - Enables a plugin that **activates on every gateway startup** and registers VINES/VECNA tools — this is an ongoing capability, not a one-shot script.
+> - **VECNA stays disabled** unless the operator explicitly opts in; when enabled it reads from and writes to a shared knowledge store **outside this host**.
+>
+> If the operator hasn't clearly agreed to these, confirm before proceeding.
 
 ## Trigger phrases
 
-Invoke this skill when the operator says any of:
+This is a high-impact installer. Trigger it **only** on an explicit, unambiguous request to install / set up / upgrade *openclaw-hawkins* (or its named components) on this host — for example:
 
-- "Install openclaw-hawkins"
-- "Set up the multi-agent orchestration"
-- "Deploy the Tendrils" / "Wire up the agent swarm"
-- "Install the orchestra pattern"
-- "Bootstrap openclaw-hawkins on this host"
-- "Upgrade my swarm to openclaw-hawkins"
+- "Install openclaw-hawkins on this host"
+- "Set up the openclaw-hawkins multi-agent orchestration"
+- "Bootstrap / upgrade openclaw-hawkins"
+- "Deploy the openclaw-hawkins Tendrils / agent swarm"
 
-If the operator says "explain openclaw-hawkins" or "what is openclaw-hawkins," **don't** trigger this skill — just describe the pattern by reading `README.md` from the repo.
+If the request is vague, incidental, or could just be conversation about agents or orchestration ("deploy the tendrils", "set up some agents") — **don't assume**. Confirm the operator wants the full host install first. If they say "explain openclaw-hawkins" or "what is openclaw-hawkins," **don't** trigger this skill — describe the pattern by reading `README.md` from the repo.
 
 ---
 
@@ -215,7 +224,7 @@ openclaw config set plugins.entries.openclaw-hawkins.config.mariadb.url \
 openclaw config set plugins.entries.openclaw-hawkins.config.mariadb.user \
   "$MARIADB_USER"
 openclaw config set plugins.entries.openclaw-hawkins.config.mariadb.ssl \
-  "${MARIADB_SSL:-insecure}"
+  "${MARIADB_SSL:-preferred}"
 
 # 4. Install MARIADB_PASSWORD into the gateway's environment via a 0600
 #    EnvironmentFile (the secret never sits in openclaw.json).
@@ -581,7 +590,7 @@ treat them as preconditions. Resolution order:
    export MARIADB_URL="mariadb://$(op item get "$OP_ITEM" --vault "$OP_VAULT" --fields label=server --reveal):$(op item get "$OP_ITEM" --vault "$OP_VAULT" --fields label=port --reveal)/$OP_DB"
    export MARIADB_USER="$(op item get "$OP_ITEM" --vault "$OP_VAULT" --fields label=username --reveal)"
    export MARIADB_PASSWORD="$(op item get "$OP_ITEM" --vault "$OP_VAULT" --fields label=password --reveal)"
-   export MARIADB_SSL="${MARIADB_SSL:-insecure}"   # cloud DBs with self-signed certs
+   export MARIADB_SSL="${MARIADB_SSL:-preferred}"   # TLS with cert verification; use a CA-trusted cert or SSH tunnel for self-signed DBs
    ```
 
    If the item's `database` field is empty, fall back to the operator-provided

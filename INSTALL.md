@@ -252,7 +252,9 @@ FLUSH PRIVILEGES;
 ```
 
 (If TLS is enforced server-side, add `REQUIRE SSL` to the `CREATE USER`
-statement. The library supports `MARIADB_SSL=insecure` for self-signed certs.)
+statement and use `MARIADB_SSL=required`. All TLS modes verify the server
+certificate; for a self-signed cloud cert, use a CA-trusted cert or reach the
+DB over an SSH tunnel — there is no verification-disabling mode.)
 
 ### 9.2 Install the library
 
@@ -272,10 +274,10 @@ The library reads these env vars (see [`vines/spec.md`](vines/spec.md) §5):
 
 | Variable           | Purpose                                                                  |
 | ------------------ | ------------------------------------------------------------------------ |
-| `MARIADB_URL`      | `mariadb://<host>[:port]/<database>` (credentials in URL win if present) |
-| `MARIADB_USER`     | DB user (skip if embedded in the URL)                                    |
-| `MARIADB_PASSWORD` | DB password (skip if embedded)                                           |
-| `MARIADB_SSL`      | `disabled` \| `preferred` (default) \| `required` \| `insecure`          |
+| `MARIADB_URL`      | `mariadb://<host>[:port]/<database>` — no password in the URL (rejected) |
+| `MARIADB_USER`     | DB user (or embed the **username only** in the URL)                      |
+| `MARIADB_PASSWORD` | DB password — from the environment only, never embedded in the URL       |
+| `MARIADB_SSL`      | `disabled` \| `preferred` (default) \| `required`                        |
 | `LINEAR_API_KEY`   | Linear personal API token (required)                                     |
 
 Add them to your shell, the orchestrator agent's systemd unit, or wherever
