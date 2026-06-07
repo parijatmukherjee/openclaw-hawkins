@@ -156,8 +156,17 @@ openclaw sessions --active 60 --all-agents
 
 # All configured top-level agents
 openclaw agents list
+```
 
-# A specific session's transcript file (you have read access)
+> 🔒 **Reading another agent's transcript is a privacy-sensitive action — scope it.**
+> Session transcripts (`~/.openclaw/agents/<id>/sessions/<session-id>.jsonl`) can
+> contain unrelated prior conversation content. Only read a transcript when the
+> operator has asked you to troubleshoot **that specific** run, read just the one
+> session in question (not a broad sweep), and don't surface its contents beyond
+> what the operator needs. When in doubt, ask first.
+
+```bash
+# Only for an explicitly-requested post-mortem of one specific run:
 cat ~/.openclaw/agents/<id>/sessions/<session-id>.jsonl
 ```
 
