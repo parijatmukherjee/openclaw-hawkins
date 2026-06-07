@@ -173,3 +173,27 @@ describe("README install trigger is explicit and warns (Vague Triggers)", () => 
     expect(read("README.md")).toMatch(/high-impact install/i);
   });
 });
+
+describe("Follow-up scan fixes (v2.0.1) — must not regress", () => {
+  it("setup.ts backs up files instead of destroying them (no unconditional BOOTSTRAP delete)", () => {
+    const setup = read("src/plugin/setup.ts");
+    expect(setup).toContain("backupIfExists");
+    // The old unconditional delete must be gone.
+    expect(setup).not.toMatch(/rm\(\s*join\(workspace,\s*["']BOOTSTRAP\.md["']\)/);
+    // AGENTS.md overlay is preceded by a backup of the destination.
+    expect(setup).toMatch(/backupIfExists\(destAgents/);
+  });
+
+  it("vecna_connect tool description warns against publishing secrets", () => {
+    const tools = read("src/plugin/tools.ts");
+    expect(tools).toMatch(/MUST NOT include secrets/i);
+    expect(tools).toMatch(/requires explicit operator approval/i);
+  });
+
+  it("vision-agent skill warns that images go to the cloud and may hold sensitive data", () => {
+    const vision = read("skills/vision-agent-skill/SKILL.md");
+    expect(vision).toMatch(/Data handling/i);
+    expect(vision).toMatch(/sensitive data/i);
+    expect(vision).toMatch(/cloud-hosted/i);
+  });
+});

@@ -13,8 +13,8 @@
  *      orchestrator workspace files.
  */
 import { execFile } from "node:child_process";
-import { copyFile, mkdir, readFile, rm, stat } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { copyFile, mkdir, readFile, rename, stat } from "node:fs/promises";
+import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { createConnection } from "mariadb";
@@ -114,16 +114,21 @@ export async function runSetup(opts: SetupOptions): Promise<{
       agentsCreated.push(agent.id);
     }
 
-    // Overlay this repo's AGENTS.md.
+    // Overlay this repo's AGENTS.md — backing up any existing file first so an
+    // operator's own AGENTS.md is never destroyed without a recoverable copy.
     const srcAgents = join(PACKAGE_ROOT, "agents", agent.id, "AGENTS.md");
     if (await pathExists(srcAgents)) {
       await mkdir(workspace, { recursive: true });
-      await copyFile(srcAgents, join(workspace, "AGENTS.md"));
+      const destAgents = join(workspace, "AGENTS.md");
+      await backupIfExists(destAgents, log);
+      await copyFile(srcAgents, destAgents);
       log("         overlaid AGENTS.md");
     }
 
-    // Remove the auto-generated BOOTSTRAP.md — specialists carry a pre-defined identity.
-    await rm(join(workspace, "BOOTSTRAP.md"), { force: true });
+    // Retire the auto-generated BOOTSTRAP.md — specialists carry a pre-defined
+    // identity. Preserve it as a timestamped backup rather than deleting it
+    // outright, so its contents remain recoverable and auditable.
+    await backupIfExists(join(workspace, "BOOTSTRAP.md"), log, { retire: true });
   }
 
   log("");
@@ -307,4 +312,29 @@ async function pathExists(p: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/**
+ * Move an existing file aside to `<file>.bak.<timestamp>` before it is
+ * overwritten or removed, mirroring the skill's "backup before overlay"
+ * principle so setup never destroys an operator's file without a recoverable
+ * copy. No-op when the file does not exist.
+ *
+ * - default: leaves a backup *copy* alongside the file about to be overwritten.
+ * - `{ retire: true }`: moves the file to the backup (no original remains),
+ *   used when retiring a file we want gone but still recoverable.
+ */
+async function backupIfExists(
+  target: string,
+  log: (s: string) => void,
+  opts: { retire?: boolean } = {},
+): Promise<void> {
+  if (!(await pathExists(target))) return;
+  const backup = `${target}.bak.${Date.now()}`;
+  if (opts.retire) {
+    await rename(target, backup);
+  } else {
+    await copyFile(target, backup);
+  }
+  log(`         backed up ${basename(target)} → ${basename(backup)}`);
 }

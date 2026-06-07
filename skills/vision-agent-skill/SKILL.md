@@ -21,6 +21,15 @@ Spawn this agent when the task involves:
 - **Primary:** `ollama/kimi-k2.5:cloud` (text+image, 125k context)
 - **Why:** kimi-k2.5 is vision-capable via Ollama cloud. It can accept image inputs and analyze them.
 
+## Data handling (read first)
+Images and screenshots are sent to a **cloud-hosted** vision model — they leave
+this host. Screenshots in particular routinely contain **sensitive data**:
+credentials or tokens on screen, API keys, personal/customer information, internal
+URLs and hostnames, or private messages. Before sending an image:
+- Confirm the operator is OK with this specific image going to the cloud model.
+- Prefer redacting or cropping out anything sensitive that isn't needed for the task.
+- Never upload an image solely to extract a secret from it.
+
 ## How to Spawn
 
 ```python

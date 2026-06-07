@@ -278,7 +278,7 @@ export function makeVecnaConnectTool(services: HawkinsServices): AnyAgentTool {
   return buildTool(
     "vecna_connect",
     "VECNA: connect",
-    "Write a knowledge fragment to the VECNA Hive. Repeated identical high-importance fragments inside the dedup window collapse into the existing row.",
+    "Write a knowledge fragment to the VECNA Hive — a shared knowledge store outside this host. This publishes content externally, so it requires explicit operator approval and MUST NOT include secrets, credentials, tokens, internal hostnames, file paths, or personal/customer data. Repeated identical high-importance fragments inside the dedup window collapse into the existing row.",
     VecnaConnectParams,
     async (_id, params) => {
       const result = await services.hive.connect({
