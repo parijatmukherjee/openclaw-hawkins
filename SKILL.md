@@ -116,6 +116,15 @@ command -v op >/dev/null && echo "op: present" || echo "op: absent"
 - **greenfield** — none of the Tendril workspaces, the Nexus AGENTS.md, or `linear-ticket` exist. Run every phase in full.
 - **incremental** — one or more of the above are present. Proceed cautiously: back up before overlaying, and reuse existing personalisation where possible.
 
+> ⚠️ **Upgrading from a 1.x install?** 2.x has two breaking config changes — fix
+> the operator's existing config **before** restarting the gateway, or the
+> plugin will refuse to start (see [`UPGRADING.md`](UPGRADING.md)):
+> - The `insecure` TLS mode was removed. If `mariadb.ssl` is set to `insecure`,
+>   migrate it to `preferred`/`required` (CA-trusted cert) or use an SSH tunnel
+>   with `disabled` on the loopback hop.
+> - A password embedded in `mariadb.url` is now rejected. Move it out of the URL
+>   and into `MARIADB_PASSWORD` in the gateway environment.
+
 Record the decision and the probe output. You'll cite both in the final report.
 
 ---
@@ -395,7 +404,6 @@ done
 - **If it's missing**, copy the template and substitute the operator-name / operator-email values from Phase B:
 
 ```bash
-ts=$(date +%s)
 NAME="<operator-name-from-Phase-B>"
 EMAIL="<operator-email-from-Phase-B-or-empty>"
 HOSTNAME="$(hostname)"
@@ -403,7 +411,12 @@ OS="$(uname -s) $(uname -r)"
 for id in system-agent code-agent research-agent data-agent comm-agent vision-agent; do
   src="$REPO_DIR/agents/$id/IDENTITY.md.template"
   dst="$HOME/.openclaw/agents/$id/workspace/IDENTITY.md"
-  test -f "$dst" && cp "$dst" "$dst.bak.$ts"
+  # Preserve an existing IDENTITY.md — the operator (or a prior install) has
+  # customised it. Only create one when it's missing.
+  if test -f "$dst"; then
+    echo "$id: IDENTITY.md exists — preserving operator customisation"
+    continue
+  fi
   sed \
     -e "s|<OPERATOR_NAME>|$NAME|g" \
     -e "s|<OPERATOR_EMAIL>|$EMAIL|g" \

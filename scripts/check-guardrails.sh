@@ -11,10 +11,11 @@ set -euo pipefail
 repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root" || exit 1
 
-# Files allowed to mention the forbidden patterns: the changelog (which
-# documents the removals) and the guardrail checks themselves.
+# Files allowed to mention the forbidden patterns: the changelog and upgrade
+# guide (which document the removals) and the guardrail checks themselves.
 exclude=(
   ':!CHANGELOG.md'
+  ':!UPGRADING.md'
   ':!scripts/check-guardrails.sh'
   ':!tests/security'
 )

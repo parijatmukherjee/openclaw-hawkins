@@ -124,7 +124,7 @@ artifact, both of which are version-pinned at publish time), **clone a
 specific release tag** rather than the moving `main` branch:
 
 ```bash
-git clone --branch v1.0.2 --depth 1 https://github.com/parijatmukherjee/openclaw-hawkins.git
+git clone --branch v2.0.1 --depth 1 https://github.com/parijatmukherjee/openclaw-hawkins.git
 ```
 
 The npm / ClawHub install paths are immutable per version by design.
