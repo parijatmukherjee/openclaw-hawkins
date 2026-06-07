@@ -1,15 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { createServicesMock, runSetupMock, buildAutoRecoveryHandlerMock, createAllToolsMock } =
-  vi.hoisted(() => ({
-    createServicesMock: vi.fn(),
-    runSetupMock: vi.fn(async () => undefined),
-    buildAutoRecoveryHandlerMock: vi.fn(() => async () => undefined),
-    createAllToolsMock: vi.fn(() => [
-      { name: "vines_triage", label: "x", description: "x", parameters: { type: "object" } },
-      { name: "vecna_healthz", label: "y", description: "y", parameters: { type: "object" } },
-    ]),
-  }));
+const {
+  createServicesMock,
+  runSetupMock,
+  buildAutoRecoveryHandlerMock,
+  createVinesToolsMock,
+  createVecnaToolsMock,
+} = vi.hoisted(() => ({
+  createServicesMock: vi.fn(),
+  runSetupMock: vi.fn(async () => undefined),
+  buildAutoRecoveryHandlerMock: vi.fn(() => async () => undefined),
+  createVinesToolsMock: vi.fn(() => [
+    { name: "vines_triage", label: "x", description: "x", parameters: { type: "object" } },
+    { name: "vines_status", label: "x", description: "x", parameters: { type: "object" } },
+  ]),
+  createVecnaToolsMock: vi.fn(() => [
+    { name: "vecna_connect", label: "y", description: "y", parameters: { type: "object" } },
+    { name: "vecna_healthz", label: "y", description: "y", parameters: { type: "object" } },
+  ]),
+}));
 
 vi.mock("../../src/plugin/services.js", () => ({
   createServices: createServicesMock,
@@ -22,7 +31,8 @@ vi.mock("../../src/plugin/hooks.js", () => ({
   buildAutoRecoveryHandler: buildAutoRecoveryHandlerMock,
 }));
 vi.mock("../../src/plugin/tools.js", () => ({
-  createAllTools: createAllToolsMock,
+  createVinesTools: createVinesToolsMock,
+  createVecnaTools: createVecnaToolsMock,
 }));
 
 import plugin from "../../src/plugin/index.js";
@@ -61,8 +71,10 @@ describe("plugin entry", () => {
     (plugin as unknown as { register: (api: unknown) => void }).register(api);
 
     expect(createServicesMock).toHaveBeenCalledOnce();
-    expect(createAllToolsMock).toHaveBeenCalledOnce();
-    expect(api.registerTool).toHaveBeenCalledTimes(2);
+    // VINES tools always register; VECNA tools are gated off by default.
+    expect(createVinesToolsMock).toHaveBeenCalledOnce();
+    expect(createVecnaToolsMock).not.toHaveBeenCalled();
+    expect(api.registerTool).toHaveBeenCalledTimes(2); // 2 mock VINES tools only
     expect(api.registerCli).toHaveBeenCalledOnce();
     expect(api.registerHook).toHaveBeenCalledWith("gateway_start", expect.any(Function), {
       name: "hawkins/auto-recovery",
@@ -102,6 +114,34 @@ describe("plugin entry", () => {
     registrar({ program });
     expect(command).toHaveBeenCalledWith("hawkins");
     expect(createCommand).toHaveBeenCalledWith("setup");
+  });
+
+  it("does NOT register VECNA tools by default (hard-gated off)", () => {
+    const api = fakeApi(); // pluginConfig = {}
+    createServicesMock.mockReturnValue({
+      ledger: {},
+      hive: {},
+      getLinear: () => null,
+      close: vi.fn(async () => undefined),
+    });
+    (plugin as unknown as { register: (api: unknown) => void }).register(api);
+    expect(createVecnaToolsMock).not.toHaveBeenCalled();
+    expect(api.registerTool).toHaveBeenCalledTimes(2); // VINES only
+  });
+
+  it("registers VECNA tools only when vecna.enabled is true", () => {
+    const api = fakeApi();
+    api.pluginConfig = { vecna: { enabled: true } };
+    createServicesMock.mockReturnValue({
+      ledger: {},
+      hive: {},
+      getLinear: () => null,
+      close: vi.fn(async () => undefined),
+    });
+    (plugin as unknown as { register: (api: unknown) => void }).register(api);
+    expect(createVinesToolsMock).toHaveBeenCalledOnce();
+    expect(createVecnaToolsMock).toHaveBeenCalledOnce();
+    expect(api.registerTool).toHaveBeenCalledTimes(4); // 2 VINES + 2 VECNA
   });
 
   it("auto-recovery is enabled when plugin config opts in", () => {

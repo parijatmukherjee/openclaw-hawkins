@@ -385,7 +385,8 @@ export function makeVecnaHealthzTool(services: HawkinsServices): AnyAgentTool {
 // Public: registry of all 12 tool factories
 // ---------------------------------------------------------------------------
 
-export function createAllTools(services: HawkinsServices): AnyAgentTool[] {
+/** The six VINES (durable orchestration) tools — always registered. */
+export function createVinesTools(services: HawkinsServices): AnyAgentTool[] {
   return [
     makeVinesTriageTool(services),
     makeVinesStartTool(services),
@@ -393,6 +394,16 @@ export function createAllTools(services: HawkinsServices): AnyAgentTool[] {
     makeVinesAttachLinearParentTool(services),
     makeVinesRecoverTool(services),
     makeVinesStatusTool(services),
+  ];
+}
+
+/**
+ * The six VECNA (shared-memory Hive) tools. These cross a trust boundary
+ * (read/write to a store outside the host), so the plugin only registers them
+ * when the operator has explicitly enabled VECNA (`vecna.enabled = true`).
+ */
+export function createVecnaTools(services: HawkinsServices): AnyAgentTool[] {
+  return [
     makeVecnaConnectTool(services),
     makeVecnaRecallTool(services),
     makeVecnaEvolveTool(services),
@@ -400,4 +411,8 @@ export function createAllTools(services: HawkinsServices): AnyAgentTool[] {
     makeVecnaFragmentTool(services),
     makeVecnaHealthzTool(services),
   ];
+}
+
+export function createAllTools(services: HawkinsServices): AnyAgentTool[] {
+  return [...createVinesTools(services), ...createVecnaTools(services)];
 }
