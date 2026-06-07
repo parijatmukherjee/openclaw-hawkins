@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { loadDBConfig, loadLinearApiKey, sslOptionFor } from "../src/config.js";
+import { attachDbCredential, loadDBConfig, loadLinearApiKey, sslOptionFor } from "../src/config.js";
 
 const VARS = ["MARIADB_URL", "MARIADB_USER", "MARIADB_PASSWORD", "MARIADB_SSL", "LINEAR_API_KEY"];
 
@@ -126,6 +126,19 @@ describe("loadDBConfig", () => {
     ).toThrow(/MARIADB_SSL/);
   });
 
+  it("rejects the removed insecure SSL mode (no TLS-verification bypass)", () => {
+    expect(() =>
+      loadDBConfig(
+        withEnv({
+          MARIADB_URL: "mariadb://h/db",
+          MARIADB_USER: "u",
+          MARIADB_PASSWORD: "p",
+          MARIADB_SSL: "insecure",
+        }),
+      ),
+    ).toThrow(/must be one of disabled\|preferred\|required/);
+  });
+
   it("rejects port out of range (URL parser does the work)", () => {
     expect(() =>
       loadDBConfig(
@@ -149,6 +162,15 @@ describe("sslOptionFor", () => {
     for (const mode of ["preferred", "required"] as const) {
       expect(sslOptionFor(mode)).toEqual({ rejectUnauthorized: true });
     }
+  });
+});
+
+describe("attachDbCredential", () => {
+  it("attaches the env-sourced password onto the target config object", () => {
+    const target = { host: "h", port: 3306 };
+    const result = attachDbCredential(target, "s3cret");
+    expect(result).toBe(target); // same object, mutated in place
+    expect((result as Record<string, unknown>).password).toBe("s3cret");
   });
 });
 

@@ -87,3 +87,13 @@ jobs:
       - uses: ludeeus/action-shellcheck@2.0.0
         with:
           scandir: ./scripts
+
+  guardrails:
+    name: security guardrails (ClawHub findings)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Independent of the vitest suite: a fast `git grep` backstop that fails
+      # if any resolved ClawHub finding regresses. No install step needed.
+      - name: Run guardrail scan
+        run: bash scripts/check-guardrails.sh
