@@ -6,6 +6,19 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+### Security
+
+- **ASI06 — auth-by-default for VECNA.** `vecna serve` now **refuses to start**
+  without `VECNA_AUTH_TOKEN` unless the operator explicitly sets
+  `VECNA_ALLOW_INSECURE=1`. Previously
+  an unauthenticated Hive could come up silently, letting any local process that
+  reached the port (default `127.0.0.1:8765`) read and `evolve` shared memory
+  fragments that later flow into agent context. New env var:
+  `VECNA_ALLOW_INSECURE`.
+- **SECURITY.md** now records explicit mitigations for the agentic-security (ASI)
+  findings ASI02/ASI03/ASI05/ASI06/ASI07, distinguishing enforced defaults from
+  operator guidance.
+
 ### Added
 
 - **The supervisor pattern.** One conversational orchestrator (the

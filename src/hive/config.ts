@@ -12,6 +12,8 @@ export interface VecnaConfig {
   host: string;
   port: number;
   authToken: string | null;
+  /** ASI06: explicit opt-in to run the Hive without authentication. */
+  allowInsecure: boolean;
   dedupWindowMinutes: number;
   db: DBConfig;
 }
@@ -39,9 +41,42 @@ export function loadVecnaServerConfig(env: NodeJS.ProcessEnv = process.env): Vec
     host,
     port,
     authToken: bearer,
+    allowInsecure: parseAllowInsecure(env),
     dedupWindowMinutes: window,
     db: loadVinesDBConfig(env),
   };
+}
+
+/**
+ * ASI06 hardening — parse the explicit insecure opt-in. Accepts `1`, `true`,
+ * or `yes` (case-insensitive). Anything else (incl. unset) is `false`.
+ */
+export function parseAllowInsecure(env: NodeJS.ProcessEnv = process.env): boolean {
+  const v = (env.VECNA_ALLOW_INSECURE ?? "").trim().toLowerCase();
+  return v === "1" || v === "true" || v === "yes";
+}
+
+/**
+ * ASI06 hardening — auth-by-default. Refuse to start an unauthenticated Hive
+ * unless the operator has explicitly opted in. Without a bearer token, any local
+ * process that can reach the port (default `127.0.0.1:8765`) can read and
+ * `evolve` shared memory fragments that later flow into agent context.
+ *
+ * Throws with an actionable message when no token is configured and the operator
+ * has not set `VECNA_ALLOW_INSECURE`.
+ */
+export function assertServeAuthPosture(cfg: {
+  authToken: string | null;
+  allowInsecure: boolean;
+}): void {
+  if (cfg.authToken === null && !cfg.allowInsecure) {
+    throw new Error(
+      "Refusing to start VECNA without authentication (ASI06). Set VECNA_AUTH_TOKEN " +
+        "to a secret bearer token (recommended), e.g. `export VECNA_AUTH_TOKEN=$(openssl rand -hex 32)`. " +
+        "To deliberately run an unauthenticated Hive (NOT recommended — any local process that can " +
+        "reach the port can read and evolve shared memory), set VECNA_ALLOW_INSECURE=1.",
+    );
+  }
 }
 
 export function loadVecnaClientConfig(env: NodeJS.ProcessEnv = process.env): ClientConfig {
@@ -70,8 +105,12 @@ export function loadVecnaClientConfig(env: NodeJS.ProcessEnv = process.env): Cli
 function resolveVecnaBearer(env: NodeJS.ProcessEnv): string | null {
   const raw = env.VECNA_AUTH_TOKEN;
   if (raw === undefined) return null;
-  if (raw.length === 0) {
-    throw new Error("VECNA_AUTH_TOKEN, when set, must be non-empty");
+  // Trim and reject whitespace-only tokens: a blank-after-trim value would
+  // otherwise pass and let the Hive start with an effectively empty bearer,
+  // defeating the auth-by-default posture (ASI06).
+  const trimmed = raw.trim();
+  if (trimmed.length === 0) {
+    throw new Error("VECNA_AUTH_TOKEN, when set, must be non-empty (not only whitespace)");
   }
-  return raw;
+  return trimmed;
 }

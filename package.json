@@ -1,6 +1,6 @@
 {
   "name": "openclaw-hawkins",
-  "version": "1.0.9",
+  "version": "1.1.0",
   "description": "openclaw-hawkins — durable orchestration (VINES) + shared agent memory (VECNA) for OpenClaw. Ships as an OpenClaw plugin and as a standalone CLI.",
   "license": "MIT",
   "author": "Parijat Mukherjee",
