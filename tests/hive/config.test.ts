@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { loadVecnaServerConfig, loadVecnaClientConfig } from "../../src/hive/config.js";
+import {
+  loadVecnaServerConfig,
+  loadVecnaClientConfig,
+  parseAllowInsecure,
+  assertServeAuthPosture,
+} from "../../src/hive/config.js";
 
 const VARS = [
   "MARIADB_URL",
@@ -9,6 +14,7 @@ const VARS = [
   "VECNA_HOST",
   "VECNA_PORT",
   "VECNA_AUTH_TOKEN",
+  "VECNA_ALLOW_INSECURE",
   "VECNA_DEDUP_WINDOW_MIN",
   "VECNA_URL",
   "VECNA_TIMEOUT_MS",
@@ -87,5 +93,41 @@ describe("loadVecnaClientConfig", () => {
   it("rejects bad timeout", () => {
     process.env.VECNA_TIMEOUT_MS = "0";
     expect(() => loadVecnaClientConfig()).toThrow(/VECNA_TIMEOUT_MS/);
+  });
+});
+
+describe("ASI06 — auth-by-default (parseAllowInsecure / assertServeAuthPosture)", () => {
+  it("parseAllowInsecure is false when unset and for arbitrary values", () => {
+    expect(parseAllowInsecure({})).toBe(false);
+    expect(parseAllowInsecure({ VECNA_ALLOW_INSECURE: "0" })).toBe(false);
+    expect(parseAllowInsecure({ VECNA_ALLOW_INSECURE: "nope" })).toBe(false);
+  });
+
+  it("parseAllowInsecure accepts 1/true/yes case-insensitively", () => {
+    expect(parseAllowInsecure({ VECNA_ALLOW_INSECURE: "1" })).toBe(true);
+    expect(parseAllowInsecure({ VECNA_ALLOW_INSECURE: "TRUE" })).toBe(true);
+    expect(parseAllowInsecure({ VECNA_ALLOW_INSECURE: "Yes" })).toBe(true);
+  });
+
+  it("loadVecnaServerConfig surfaces allowInsecure", () => {
+    withDb();
+    process.env.VECNA_ALLOW_INSECURE = "1";
+    expect(loadVecnaServerConfig().allowInsecure).toBe(true);
+  });
+
+  it("refuses to serve with no token and no opt-in", () => {
+    expect(() => assertServeAuthPosture({ authToken: null, allowInsecure: false })).toThrow(
+      /Refusing to start VECNA without authentication/,
+    );
+  });
+
+  it("allows serving when a token is configured", () => {
+    expect(() =>
+      assertServeAuthPosture({ authToken: "secret", allowInsecure: false }),
+    ).not.toThrow();
+  });
+
+  it("allows serving without a token only when explicitly opted in", () => {
+    expect(() => assertServeAuthPosture({ authToken: null, allowInsecure: true })).not.toThrow();
   });
 });

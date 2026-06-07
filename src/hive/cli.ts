@@ -22,7 +22,7 @@ import { Command, InvalidArgumentError } from "commander";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 
-import { loadVecnaServerConfig } from "./config.js";
+import { loadVecnaServerConfig, assertServeAuthPosture } from "./config.js";
 import { HiveTendril } from "./client.js";
 import { HiveStore } from "./store.js";
 import { createServer } from "./server.js";
@@ -193,6 +193,8 @@ interface EvolveOpts {
 
 async function serve(opts: { port?: number; host?: string }): Promise<number> {
   const env = loadVecnaServerConfig();
+  // ASI06: refuse to expose an unauthenticated Hive unless explicitly opted in.
+  assertServeAuthPosture({ authToken: env.authToken, allowInsecure: env.allowInsecure });
   const port = opts.port ?? env.port;
   const host = opts.host ?? env.host;
   const store = new HiveStore({ db: env.db, dedupWindowMinutes: env.dedupWindowMinutes });
@@ -203,6 +205,13 @@ async function serve(opts: { port?: number; host?: string }): Promise<number> {
         authRequired: env.authToken !== null,
         dedupWindowMinutes: env.dedupWindowMinutes,
       });
+      if (env.authToken === null) {
+        narrate(
+          "WARNING: VECNA is running WITHOUT authentication (VECNA_ALLOW_INSECURE). " +
+            "Any local process that can reach the port can read and evolve shared memory. " +
+            "Set VECNA_AUTH_TOKEN and remove VECNA_ALLOW_INSECURE for production.",
+        );
+      }
     });
     const shutdown = (signal: string): void => {
       narrate(`Nexus received ${signal}; closing`);

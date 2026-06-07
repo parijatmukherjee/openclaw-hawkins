@@ -75,10 +75,14 @@ path is gated by `topic` match, non-deprecated status, the dedup window,
 and a decay penalty for entries older than 6 months without `importance=5`.
 
 Operator guidance:
-- Require **`VECNA_AUTH_TOKEN`** in production deployments — without it,
-  any process that can reach the Hive port (default `127.0.0.1:8765`) can
-  connect and evolve fragments. The HTTP server refuses connections
-  lacking the bearer when the token is set.
+- **Auth-by-default (enforced since v1.1.0).** `vecna serve` now **refuses to
+  start** unless `VECNA_AUTH_TOKEN` is set. Without a token, any process that can
+  reach the Hive port (default `127.0.0.1:8765`) could connect and evolve
+  fragments — so the server fails fast with an actionable message instead of
+  coming up unauthenticated. To deliberately run an unauthenticated Hive (local
+  dev only), set `VECNA_ALLOW_INSECURE=1`; the server then logs a loud warning on
+  every start. When a token is set, the HTTP server refuses any request lacking
+  the matching bearer.
 - The `source_agent` field is recorded on every fragment. Review periodically
   via `vecna_search` and use `vecna_evolve` to supersede stale entries.
 - Decay handling (built-in): entries older than 6 months without
@@ -125,6 +129,25 @@ git clone --branch v1.0.2 --depth 1 https://github.com/parijatmukherjee/openclaw
 ```
 
 The npm / ClawHub install paths are immutable per version by design.
+
+## Threat mitigations — agentic-security (ASI) findings
+
+An agentic-security review flagged the items below. This table records how each
+is addressed. "Enforced" means the code prevents the unsafe default; "Guidance"
+means the operator retains control and the docs steer them to the safe choice
+(the surface is an OpenClaw / external-service concern the plugin cannot enforce).
+
+| Finding                                    | Severity | Mitigation                                                                                                                                                           | Status       |
+| ------------------------------------------ | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
+| **ASI06** Memory & context poisoning       | Medium   | `vecna serve` refuses to start without `VECNA_AUTH_TOKEN` unless `VECNA_ALLOW_INSECURE=1` (loud warning). Bind to loopback; review/deprecate fragments via `vecna_evolve`. | **Enforced** |
+| **ASI03** Identity & privilege abuse       | Medium   | Use a Linear **OAuth token scoped to one team**, not a full personal key; review the first tickets after setup. See "Linear API integration" above.                  | Guidance     |
+| **ASI02** Tool misuse & exploitation       | Low      | Allowlist the 12 `vines_*`/`vecna_*` tools only to the intended Hawkins agents in your OpenClaw config; require human review for sensitive mutations where supported. | Guidance     |
+| **ASI07** Insecure inter-agent comms       | Low      | Never put secrets in tool args/messages; the configSchema rejects `mariadb.password` / `linear.apiKey`, forcing them through the gateway env. See "Inter-agent dispatch" above. | Enforced + guidance |
+| **ASI05** Unexpected code execution        | Info     | `hawkins setup` is an explicit, operator-run step with a post-install banner; run it only on the intended host and use a dedicated MariaDB database/user.             | Guidance     |
+
+> The full design-level treatment of these classes — and how the **OpenHawkins**
+> successor enforces them as runtime defaults — lives in that project's
+> `docs/security-model.md`.
 
 ## Disclosure
 
