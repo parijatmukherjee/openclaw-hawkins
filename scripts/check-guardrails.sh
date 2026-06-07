@@ -37,13 +37,29 @@ fail=0
 for entry in "${forbidden[@]}"; do
   desc="${entry%%::*}"
   pattern="${entry##*::}"
-  if hits="$(git grep -nE "$pattern" -- "${exclude[@]}")"; then
-    fail=1
-    echo "✗ REGRESSED FINDING — forbidden pattern present: ${desc}"
-    while IFS= read -r line; do
-      echo "      ${line}"
-    done <<<"$hits"
-  fi
+  # git grep exits 0 (match), 1 (no match), or >=2 (scan error, e.g. a bad
+  # pattern/pathspec). Distinguish them explicitly: a scan error must FAIL the
+  # guardrail, not be silently swallowed as "no match".
+  set +e
+  hits="$(git grep -nE "$pattern" -- "${exclude[@]}")"
+  status=$?
+  set -e
+  case "$status" in
+    0)
+      fail=1
+      echo "✗ REGRESSED FINDING — forbidden pattern present: ${desc}"
+      while IFS= read -r line; do
+        echo "      ${line}"
+      done <<<"$hits"
+      ;;
+    1)
+      : # no match — good
+      ;;
+    *)
+      echo "✗ ERROR: git grep failed (exit ${status}) while scanning for: ${desc}" >&2
+      exit 2
+      ;;
+  esac
 done
 
 # Positive invariants: every agent overlay must keep the operator-gated VECNA
