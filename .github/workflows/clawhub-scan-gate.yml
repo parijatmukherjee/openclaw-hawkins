@@ -1,0 +1,125 @@
+name: ClawHub scan gate
+
+# ClawHub's scanners run server-side on a *published* version, so this gate runs
+# AFTER the Release workflow finishes (B), on a weekly schedule (C), and on
+# demand. It downloads the stored scan and fails — and opens an issue — if a
+# finding appears that is not in clawhub-baseline.json. It does NOT require a
+# "clean" verdict (the standing "suspicious" comes from accepted items).
+
+on:
+  workflow_run:
+    workflows: ["Release"]
+    types: [completed]
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Published version to scan (e.g. 2.0.1). Defaults to the npm 'latest'."
+        required: false
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: clawhub-scan-gate
+  cancel-in-progress: false
+
+jobs:
+  scan-gate:
+    name: ClawHub scan regression gate
+    runs-on: ubuntu-latest
+    # On a Release-triggered run, only proceed if the release actually succeeded.
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Install ClawHub CLI
+        run: npm install -g clawhub
+
+      - name: Write ClawHub auth config
+        env:
+          CLAWHUB_TOKEN: ${{ secrets.CLAWHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CLAWHUB_TOKEN:-}" ]; then
+            echo "::error::CLAWHUB_TOKEN secret is not set"
+            exit 1
+          fi
+          install -m 700 -d "$RUNNER_TEMP"
+          jq -n --arg token "$CLAWHUB_TOKEN" --arg registry "https://clawhub.ai" \
+            '{registry: $registry, token: $token}' > "$RUNNER_TEMP/clawhub-config.json"
+          chmod 600 "$RUNNER_TEMP/clawhub-config.json"
+          echo "CLAWHUB_CONFIG_PATH=$RUNNER_TEMP/clawhub-config.json" >> "$GITHUB_ENV"
+
+      - name: Resolve version to scan
+        id: resolve
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          VERSION="${INPUT_VERSION:-}"
+          if [ -z "$VERSION" ]; then
+            VERSION="$(npm view openclaw-hawkins version)"
+          fi
+          if ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+([-.].+)?$'; then
+            echo "::error::Refusing to scan an invalid version string: '$VERSION'"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Scanning openclaw-hawkins@$VERSION"
+
+      - name: Run scan-regression gate
+        id: gate
+        env:
+          VERSION: ${{ steps.resolve.outputs.version }}
+        run: |
+          set -uo pipefail
+          node scripts/clawhub-scan-gate.mjs --version "$VERSION" 2>&1 | tee gate.log
+          rc="${PIPESTATUS[0]}"
+          if [ "$rc" -ne 0 ]; then
+            echo "regressed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "regressed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open an issue on regression
+        if: ${{ steps.gate.outputs.regressed == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.resolve.outputs.version }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          TITLE="ClawHub scan regression: openclaw-hawkins@${VERSION}"
+          {
+            echo "The ClawHub scan gate found a finding **not in \`clawhub-baseline.json\`** for \`openclaw-hawkins@${VERSION}\`."
+            echo ""
+            echo "Run: ${RUN_URL}"
+            echo ""
+            echo '```'
+            cat gate.log
+            echo '```'
+            echo ""
+            echo "If the new finding is acceptable, add its key to \`clawhub-baseline.json\` (or run \`node scripts/clawhub-scan-gate.mjs --version ${VERSION} --update\`). Otherwise, fix it and publish a patch."
+          } > issue-body.md
+          # Avoid duplicate issues for the same version.
+          existing="$(gh issue list --state open --search "$TITLE in:title" --json number --jq '.[0].number // empty')"
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body-file issue-body.md
+          else
+            gh issue create --title "$TITLE" --body-file issue-body.md --label "clawhub-scan" || \
+              gh issue create --title "$TITLE" --body-file issue-body.md
+          fi
+
+      - name: Fail the job on regression
+        if: ${{ steps.gate.outputs.regressed == 'true' }}
+        run: |
+          echo "::error::ClawHub scan gate detected a regression for openclaw-hawkins@${{ steps.resolve.outputs.version }}"
+          exit 1
