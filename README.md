@@ -92,7 +92,7 @@ openclaw plugins install clawhub:openclaw-hawkins \
 openclaw hawkins setup
 ```
 
-✨ The plugin registers **12 typed tools** (`vines_*` × 6, `vecna_*` × 6) with the OpenClaw runtime. They become available to agents that have been granted access in your OpenClaw config — restrict to the intended Hawkins agents (Nexus + the 6 Tendrils) where possible and review tool calls for sensitive mutations. The `hawkins setup` command prints an exhaustive **post-install banner** listing every tool, verification commands, and the remaining personalisation steps, so a human operator _or_ an AI installer agent can finish the install without consulting any other doc.
+✨ The plugin registers the **6 `vines_*` tools** with the OpenClaw runtime by default. The **6 `vecna_*` tools are off by default and enforced** — they are not registered at all unless you set `vecna.enabled=true` (see below), so the shared-memory capability simply doesn't exist for any agent until you opt in. Granted tools become available to agents per your OpenClaw config — restrict to the intended Hawkins agents (Nexus + the 6 Tendrils) where possible and review tool calls for sensitive mutations. The `hawkins setup` command prints an exhaustive **post-install banner** listing every tool, verification commands, and the remaining personalisation steps, so a human operator _or_ an AI installer agent can finish the install without consulting any other doc.
 
 Configure the plugin via `openclaw config`:
 
@@ -100,6 +100,8 @@ Configure the plugin via `openclaw config`:
 openclaw config set plugins.entries.openclaw-hawkins.config.mariadb.url  "mariadb://your-host:3306/hawkins"
 openclaw config set plugins.entries.openclaw-hawkins.config.mariadb.user "hawkins"
 openclaw config set plugins.entries.openclaw-hawkins.config.mariadb.ssl  "preferred"    # TLS with cert verification
+# VECNA shared memory is OFF by default. Opt in only if you want it (it reads/writes a store outside this host):
+openclaw config set plugins.entries.openclaw-hawkins.config.vecna.enabled true
 # Password MUST come from the gateway env — the plugin schema refuses to store it in openclaw.json.
 # Do NOT put a password in the URL above: it is stored in plaintext config (the plugin rejects one).
 # For a DB that presents a self-signed cert, use a CA-trusted cert or the SSH tunnel below — there is

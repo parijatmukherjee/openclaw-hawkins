@@ -4,10 +4,29 @@ All notable changes to this project will be documented in this file. The
 format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.0.2] - 2026-06-07
+## [2.1.0] - 2026-06-07
 
-Documentation + the two genuinely-actionable findings the full 2.0.1 ClawHub
-scan surfaced (the rest of that scan's delta was scanner non-determinism).
+Security hardening driven by the ClawHub behavioral (clawscan) review, plus the
+docs/fixes from the held 2.0.2 work (never released on its own).
+
+### Added
+
+- **Hard-enforced VECNA enablement.** New `vecna.enabled` config flag (default
+  **false**). When off, the plugin **does not register the `vecna_*` tools at
+  all** — the shared-memory capability simply does not exist for any agent,
+  rather than relying on prompt/description guidance. Set
+  `plugins.entries.openclaw-hawkins.config.vecna.enabled=true` to enable it.
+- **`UPGRADING.md`** — a 1.x → 2.x migration guide (the two breaking config
+  changes + steps) and the 1.0.x → 1.1.0 auth-by-default note. Linked from the
+  README install section and from SKILL.md's incremental-upgrade path.
+
+### Changed
+
+- **VECNA is off by default (behavior change).** Existing installs that used the
+  `vecna_*` tools must set `vecna.enabled=true` to keep them. See UPGRADING.md.
+- Bumped the stale `v1.0.9` / `v1.0.2` clone/curl pins in README, INSTALL, and
+  SECURITY to `v2.0.1` so the manual-install docs no longer point at a
+  pre-hardening release.
 
 ### Fixed
 
@@ -17,20 +36,12 @@ scan surfaced (the rest of that scan's delta was scanner non-determinism).
   one when missing), matching the stated "preserve the operator's work" intent.
   (clawscan SDI-4.)
 - **`INSTALL.md` Linear example no longer models pasting a secret inline.** The
-  `curl` example now reads the token from `$LINEAR_API_KEY` instead of placing it
-  directly in the `Authorization` header. (clawscan SQP-2.)
-
-### Added
-
-- **`UPGRADING.md`** — a 1.x → 2.x migration guide (the two breaking config
-  changes + steps) and the 1.0.x → 1.1.0 auth-by-default note. Linked from the
-  README install section and from SKILL.md's incremental-upgrade path.
-
-### Changed
-
-- Bumped the stale `v1.0.9` / `v1.0.2` clone/curl pins in README, INSTALL, and
-  SECURITY to `v2.0.1` so the manual-install docs no longer point at a
-  pre-hardening release.
+  `curl` example now reads the token from `$LINEAR_API_KEY` (via a silent prompt
+  or 1Password) instead of placing it directly in the `Authorization` header.
+  (clawscan SQP-2.)
+- **Scoped the orchestrator's transcript-reading guidance.** Reading another
+  agent's session transcript is now an explicitly-requested, single-session
+  action with a privacy caution, not a general inspection step. (clawscan SSD-3.)
 
 ## [2.0.1] - 2026-06-07
 
