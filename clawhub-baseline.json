@@ -1,0 +1,34 @@
+{
+  "_comment": "Accepted-findings baseline for the ClawHub scan gate (scripts/clawhub-scan-gate.mjs). The gate fails only when a published version's scan contains a finding NOT listed here (a regression) — it does not require the scan to be 'clean', because the current 'suspicious' verdict comes from accepted items (see notes). Regenerate after a release with: node scripts/clawhub-scan-gate.mjs --version <v> --update",
+  "generatedFrom": "openclaw-hawkins@2.0.0 scan, minus the findings fixed in 2.0.1",
+  "notes": {
+    "static/exposed_secret_literal/src/config.ts": "FALSE POSITIVE — reads MARIADB_PASSWORD from the environment; no hardcoded secret. Not obfuscated away by design.",
+    "static/exposed_secret_literal/src/hive/config.ts": "FALSE POSITIVE — resolves VECNA_AUTH_TOKEN from the environment; no hardcoded secret.",
+    "skillspector/SDI-*": "Scope judgments: the package is an installer that provisions a 6-agent orchestration runtime (VINES/VECNA/Linear CLIs). Disclosed and purpose-aligned; not scope creep.",
+    "skillspector/SQP-1": "Skill descriptions are broad by design for routing; acceptable.",
+    "skillspector/RA2/INSTALL.md": "Persistent systemd service + agent install are intentional, disclosed setup behavior.",
+    "removed-in-2.0.1": "skillspector SQP-2 on src/plugin/setup.ts, src/plugin/tools.ts, and skills/vision-agent-skill/SKILL.md, plus the clawscan 'unexpected' setup.ts finding, were addressed — they are intentionally absent so a reappearance is flagged."
+  },
+  "clawscanUnexpectedMax": 0,
+  "acceptedFindings": [
+    "static/exposed_secret_literal/src/config.ts",
+    "static/exposed_secret_literal/src/hive/config.ts",
+    "skillspector/SDI-1/agents/code-agent/AGENTS.md",
+    "skillspector/SDI-2/agents/code-agent/AGENTS.md",
+    "skillspector/SDI-1/agents/research-agent/AGENTS.md",
+    "skillspector/SDI-2/agents/research-agent/AGENTS.md",
+    "skillspector/SDI-1/src/cli.ts",
+    "skillspector/SDI-2/src/cli.ts",
+    "skillspector/SDI-1/src/hive/cli.ts",
+    "skillspector/SDI-2/src/hive/cli.ts",
+    "skillspector/SDI-1/tools/linear-ticket",
+    "skillspector/SDI-2/tools/linear-ticket",
+    "skillspector/SQP-2/docs/pulse-protocol.md",
+    "skillspector/SQP-2/orchestrator/AGENTS.md",
+    "skillspector/SQP-2/orchestrator/LINEAR.md",
+    "skillspector/SQP-1/skills/code-agent-skill/SKILL.md",
+    "skillspector/SQP-1/skills/research-agent-skill/SKILL.md",
+    "skillspector/SQP-2/vines/spec.md",
+    "skillspector/RA2/INSTALL.md"
+  ]
+}

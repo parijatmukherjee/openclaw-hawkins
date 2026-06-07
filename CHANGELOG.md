@@ -4,6 +4,35 @@ All notable changes to this project will be documented in this file. The
 format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.1] - 2026-06-07
+
+Follow-up to the ClawHub review: fixes the genuine findings the v2.0.0 scan
+still surfaced, and adds a regression gate around the ClawHub scan itself.
+
+### Fixed
+
+- **`setup.ts` no longer destroys files without a backup.** Provisioning now
+  backs up an existing `AGENTS.md` before overlaying it, and **retires
+  `BOOTSTRAP.md` by moving it to a timestamped `.bak`** instead of deleting it
+  outright — honoring the skill's "backup before overlay" principle. (Flagged by
+  both clawscan and skillspector.)
+- **`vecna_connect` tool description** now warns that it publishes to an external
+  store, requires operator approval, and must not carry secrets/credentials/PII.
+- **vision-agent skill** now warns that images/screenshots go to a cloud model
+  and may contain sensitive data, with redaction guidance.
+
+### Added
+
+- **ClawHub scan-regression gate.** `clawhub-baseline.json` records the accepted
+  findings (false-positive secret literals + installer-scope judgments);
+  `scripts/clawhub-scan-gate.mjs` downloads a published version's scan and fails
+  if a finding appears that is not in the baseline. Wired into a new
+  `clawhub-scan-gate.yml` workflow that runs after each Release, weekly, and on
+  demand, opening an issue on regression.
+- **Extended local guardrails** (PR gate): `scripts/check-guardrails.sh` and
+  `tests/security/clawhub-findings.test.ts` now pin the three fixes above so they
+  cannot silently regress.
+
 ## [2.0.0] - 2026-06-07
 
 Security-hardening release that resolves the ClawHub review findings. Two

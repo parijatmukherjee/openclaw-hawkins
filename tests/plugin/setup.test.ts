@@ -2,21 +2,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // `vi.mock` is hoisted above all imports, so any spies referenced by mock
 // factories must come from `vi.hoisted` (also hoisted) to avoid TDZ errors.
-const { queryMock, endMock, copyFileMock, mkdirMock, rmMock, statMock, execFileMock } = vi.hoisted(
-  () => ({
+const { queryMock, endMock, copyFileMock, mkdirMock, renameMock, statMock, execFileMock } =
+  vi.hoisted(() => ({
     queryMock: vi.fn(async () => undefined),
     endMock: vi.fn(async () => undefined),
     copyFileMock: vi.fn(async () => undefined),
     mkdirMock: vi.fn(async () => undefined),
-    rmMock: vi.fn(async () => undefined),
+    renameMock: vi.fn(async () => undefined),
     statMock: vi.fn(async (_p: string) => {
       throw new Error("ENOENT");
     }),
     execFileMock: vi.fn((_bin: string, _args: string[], cb: (err: Error | null) => void) => {
       cb(null);
     }),
-  }),
-);
+  }));
 
 vi.mock("mariadb", () => ({
   createConnection: vi.fn(async () => ({ query: queryMock, end: endMock })),
@@ -28,7 +27,7 @@ vi.mock("node:fs/promises", async () => {
     ...actual,
     copyFile: copyFileMock,
     mkdir: mkdirMock,
-    rm: rmMock,
+    rename: renameMock,
     stat: statMock,
   };
 });
@@ -156,8 +155,13 @@ describe("runSetup", () => {
     statMock.mockImplementation(async (p: string) => {
       if (p.endsWith("AGENTS.md")) return { isFile: () => true } as never;
       if (p.endsWith("HAWKINS_PROTOCOL.md")) throw new Error("ENOENT");
-      workspaceQueries += 1;
-      if (workspaceQueries <= 2) return { isFile: () => false } as never;
+      // Count only the workspace-directory existence checks; other per-agent
+      // stats (e.g. the BOOTSTRAP.md backup probe) must not skew the counter.
+      if (p.endsWith("workspace")) {
+        workspaceQueries += 1;
+        if (workspaceQueries <= 2) return { isFile: () => false } as never;
+        throw new Error("ENOENT");
+      }
       throw new Error("ENOENT");
     });
     const result = await runSetup({
@@ -170,20 +174,51 @@ describe("runSetup", () => {
     expect(execFileMock).toHaveBeenCalledTimes(4);
   });
 
-  it("overlays AGENTS.md when the template exists in the package", async () => {
+  it("overlays AGENTS.md and retires BOOTSTRAP.md (with backup) on a fresh workspace", async () => {
+    // Fresh workspace: the source template exists; the workspace's own AGENTS.md
+    // does not yet exist, but `openclaw agents add` left a BOOTSTRAP.md behind.
+    const underWorkspace = (p: string) => p.includes("/tmp/agents-test");
     statMock.mockImplementation(async (p: string) => {
-      if (p.endsWith("AGENTS.md")) return { isFile: () => true } as never;
+      if (underWorkspace(p)) {
+        if (p.endsWith("BOOTSTRAP.md")) return { isFile: () => true } as never; // present
+        throw new Error("ENOENT"); // workspace dir + dest AGENTS.md absent
+      }
+      if (p.endsWith("AGENTS.md")) return { isFile: () => true } as never; // source template
       throw new Error("ENOENT");
     });
-    await runSetup({
-      pluginConfig: PLUGIN_CONFIG,
-      agentsBaseDir: "/tmp/agents-test",
-      log,
-    });
-    // copyFile called once per specialist (6 total)
+    await runSetup({ pluginConfig: PLUGIN_CONFIG, agentsBaseDir: "/tmp/agents-test", log });
+    // One overlay copy per specialist; no AGENTS.md backup (dest did not exist).
     expect(copyFileMock).toHaveBeenCalledTimes(6);
-    // BOOTSTRAP.md is removed for every specialist
-    expect(rmMock).toHaveBeenCalledTimes(6);
+    // BOOTSTRAP.md is retired via rename to a .bak file (not deleted) per agent.
+    expect(renameMock).toHaveBeenCalledTimes(6);
+    for (const call of renameMock.mock.calls) {
+      const [from, to] = call as unknown as [string, string];
+      expect(from).toMatch(/BOOTSTRAP\.md$/);
+      expect(to).toMatch(/BOOTSTRAP\.md\.bak\.\d+$/);
+    }
+  });
+
+  it("backs up an existing AGENTS.md before overlaying it", async () => {
+    // Re-run / existing workspace: the destination AGENTS.md already exists, so
+    // it must be backed up (copied to .bak) before the overlay overwrites it.
+    const underWorkspace = (p: string) => p.includes("/tmp/agents-test");
+    statMock.mockImplementation(async (p: string) => {
+      if (underWorkspace(p)) {
+        if (p.endsWith("workspace")) throw new Error("ENOENT"); // dir absent → create
+        if (p.endsWith("AGENTS.md")) return { isFile: () => true } as never; // existing dest
+        throw new Error("ENOENT"); // BOOTSTRAP absent here
+      }
+      if (p.endsWith("AGENTS.md")) return { isFile: () => true } as never; // source template
+      throw new Error("ENOENT");
+    });
+    await runSetup({ pluginConfig: PLUGIN_CONFIG, agentsBaseDir: "/tmp/agents-test", log });
+    // Per specialist: 1 backup copy + 1 overlay copy = 12 total.
+    expect(copyFileMock).toHaveBeenCalledTimes(12);
+    const backupCopy = copyFileMock.mock.calls.find((c) =>
+      /AGENTS\.md\.bak\.\d+$/.test(String((c as unknown as [string, string])[1])),
+    );
+    expect(backupCopy).toBeDefined();
+    expect(logs.some((line) => line.includes("backed up AGENTS.md"))).toBe(true);
   });
 
   it("uses a custom openclaw binary path when provided", async () => {

@@ -30,6 +30,7 @@ forbidden=(
   'comm-agent "post this" auto-send shortcut::post this," send'
   'static-analyzer evasion comment::to keep static'
   'unsupervised-execution framing::Designed to run end-to-end without human supervision'
+  'unconditional BOOTSTRAP.md delete (no backup)::rm\(join\(workspace, "BOOTSTRAP\.md"'
 )
 
 fail=0
@@ -78,6 +79,22 @@ for agent in code comm data research system vision; do
       echo "✗ MISSING INVARIANT in ${file}: \"${needle}\""
     fi
   done
+done
+
+# File-specific invariants for the follow-up scan fixes (v2.0.1).
+# "file::substring that must be present"
+file_invariants=(
+  'src/plugin/setup.ts::backupIfExists'
+  'src/plugin/tools.ts::MUST NOT include secrets'
+  'skills/vision-agent-skill/SKILL.md::Data handling'
+)
+for entry in "${file_invariants[@]}"; do
+  f="${entry%%::*}"
+  needle="${entry##*::}"
+  if ! grep -qF "$needle" "$f"; then
+    fail=1
+    echo "✗ MISSING INVARIANT in ${f}: \"${needle}\""
+  fi
 done
 
 echo ""
