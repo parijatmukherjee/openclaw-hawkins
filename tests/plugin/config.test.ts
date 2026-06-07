@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   isAutoRecoveryEnabled,
+  isVecnaEnabled,
   resolveDBConfig,
   resolveDedupWindow,
   resolveLinearApiKey,
@@ -125,5 +126,20 @@ describe("isAutoRecoveryEnabled", () => {
 
   it("returns false when explicitly disabled", () => {
     expect(isAutoRecoveryEnabled({ autoRecovery: false })).toBe(false);
+  });
+});
+
+describe("isVecnaEnabled", () => {
+  it("returns false by default (VECNA hard-gated off)", () => {
+    expect(isVecnaEnabled({})).toBe(false);
+    expect(isVecnaEnabled({ vecna: {} })).toBe(false);
+  });
+
+  it("returns true only when vecna.enabled is explicitly true", () => {
+    expect(isVecnaEnabled({ vecna: { enabled: true } })).toBe(true);
+  });
+
+  it("returns false when vecna.enabled is false", () => {
+    expect(isVecnaEnabled({ vecna: { enabled: false } })).toBe(false);
   });
 });

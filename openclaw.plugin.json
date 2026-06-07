@@ -1,7 +1,7 @@
 {
   "id": "openclaw-hawkins",
   "name": "OpenClaw Hawkins — VINES + VECNA",
-  "description": "Persistent runtime plugin for OpenClaw. Activates on gateway startup and registers durable-orchestration (VINES) and shared-agent-memory (VECNA) tools for a 6-tendril Nexus swarm. VECNA is operator-gated: it reads from and writes to a shared knowledge store, so it stays off until an operator explicitly enables it.",
+  "description": "Persistent runtime plugin for OpenClaw. Activates on gateway startup and registers durable-orchestration (VINES) tools for a 6-tendril Nexus swarm. Shared-agent-memory (VECNA) is disabled by default and enforced: its read/write/search tools are not registered at all unless the operator sets `vecna.enabled=true` — so an agent cannot reach the shared store even if prompted to. When enabled, VECNA reads from and writes to a shared knowledge store outside this host.",
   "activation": {
     "onStartup": true
   },
@@ -38,9 +38,13 @@
       "label": "Auto-recovery",
       "help": "If true, the plugin scans the orchestration ledger before each tool call and logs unfinished runs. Default false."
     },
+    "vecna.enabled": {
+      "label": "Enable VECNA (shared memory)",
+      "help": "Off by default. When false, the vecna_* read/write/search tools are NOT registered, so no agent can reach the shared knowledge store. Set true only if you want shared agent memory; it reads from and writes to a store outside this host."
+    },
     "vecna.dedupWindowMinutes": {
       "label": "VECNA dedup window",
-      "help": "Minutes within which identical high-importance fragments are collapsed into the existing row. Default 5."
+      "help": "Minutes within which identical high-importance fragments are collapsed into the existing row. Default 5. Only relevant when VECNA is enabled."
     }
   },
   "configSchema": {
@@ -65,6 +69,7 @@
         "type": "object",
         "additionalProperties": false,
         "properties": {
+          "enabled": { "type": "boolean" },
           "dedupWindowMinutes": { "type": "number", "minimum": 0 }
         }
       }

@@ -5,6 +5,23 @@ action. For the full list of changes per release, see [`CHANGELOG.md`](CHANGELOG
 
 ---
 
+## 2.0.x → 2.1.0 — VECNA is now off by default
+
+`2.1.0` makes shared-agent memory (**VECNA**) opt-in and **enforced**: the
+plugin no longer registers the `vecna_*` tools unless you set a config flag. If
+you were using VECNA's shared memory, re-enable it:
+
+```bash
+openclaw config set plugins.entries.openclaw-hawkins.config.vecna.enabled true
+openclaw gateway restart
+```
+
+If you don't use VECNA, do nothing — the `vecna_*` tools are simply absent (no
+agent can reach the shared store), which is the safer default. VINES
+(durable orchestration) is unaffected and always available.
+
+---
+
 ## 1.x → 2.x (breaking)
 
 `2.0.0` is a security-hardening release with **two breaking changes**. If you

@@ -23,6 +23,7 @@ export interface HawkinsPluginConfig {
   };
   autoRecovery?: boolean;
   vecna?: {
+    enabled?: boolean;
     dedupWindowMinutes?: number;
   };
 }
@@ -64,4 +65,15 @@ export function resolveDedupWindow(pluginConfig: HawkinsPluginConfig): number {
 
 export function isAutoRecoveryEnabled(pluginConfig: HawkinsPluginConfig): boolean {
   return pluginConfig.autoRecovery === true;
+}
+
+/**
+ * VECNA (shared-memory Hive) is **off by default and enforced**: unless the
+ * operator explicitly sets `vecna.enabled = true`, the plugin does not register
+ * the `vecna_*` tools at all — so an agent cannot read from or write to the
+ * shared store even if prompted to. This is hard enforcement, not just prompt
+ * guidance.
+ */
+export function isVecnaEnabled(pluginConfig: HawkinsPluginConfig): boolean {
+  return pluginConfig.vecna?.enabled === true;
 }

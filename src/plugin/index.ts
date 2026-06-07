@@ -10,11 +10,11 @@
 import { buildJsonPluginConfigSchema, definePluginEntry } from "openclaw/plugin-sdk/core";
 import type { OpenClawPluginApi } from "openclaw/plugin-sdk/core";
 
-import { type HawkinsPluginConfig, isAutoRecoveryEnabled } from "./config.js";
+import { type HawkinsPluginConfig, isAutoRecoveryEnabled, isVecnaEnabled } from "./config.js";
 import { buildAutoRecoveryHandler } from "./hooks.js";
 import { runSetup } from "./setup.js";
 import { createServices } from "./services.js";
-import { createAllTools } from "./tools.js";
+import { createVecnaTools, createVinesTools } from "./tools.js";
 
 const PLUGIN_ID = "openclaw-hawkins";
 
@@ -40,7 +40,10 @@ const CONFIG_SCHEMA = buildJsonPluginConfigSchema({
     vecna: {
       type: "object",
       additionalProperties: false,
-      properties: { dedupWindowMinutes: { type: "number", minimum: 0 } },
+      properties: {
+        enabled: { type: "boolean" },
+        dedupWindowMinutes: { type: "number", minimum: 0 },
+      },
     },
   },
 });
@@ -49,15 +52,30 @@ export default definePluginEntry({
   id: PLUGIN_ID,
   name: "OpenClaw Hawkins — VINES + VECNA",
   description:
-    "Persistent runtime plugin for OpenClaw. Activates on gateway startup and registers durable-orchestration (VINES) and shared-agent-memory (VECNA) tools for a 6-tendril Nexus swarm. VECNA is operator-gated: it reads from and writes to a shared knowledge store, so it stays off until an operator explicitly enables it.",
+    "Persistent runtime plugin for OpenClaw. Activates on gateway startup and registers durable-orchestration (VINES) tools for a 6-tendril Nexus swarm. Shared-agent-memory (VECNA) is disabled by default and enforced: its read/write/search tools are not registered at all unless the operator sets `vecna.enabled=true` — so an agent cannot reach the shared store even if prompted to. When enabled, VECNA reads from and writes to a shared knowledge store outside this host.",
   configSchema: CONFIG_SCHEMA,
   register(api: OpenClawPluginApi) {
     const pluginConfig = (api.pluginConfig ?? {}) as HawkinsPluginConfig;
     const services = createServices(pluginConfig);
 
-    // 1. Register the 12 tools.
-    for (const tool of createAllTools(services)) {
+    // 1. Register the six VINES tools always. The six VECNA tools cross a trust
+    //    boundary (a shared store outside the host), so they are registered ONLY
+    //    when the operator has explicitly enabled VECNA — hard enforcement, not
+    //    just prompt guidance. When disabled, the vecna_* tools do not exist, so
+    //    no agent can use them even if instructed to.
+    for (const tool of createVinesTools(services)) {
       api.registerTool(tool);
+    }
+    if (isVecnaEnabled(pluginConfig)) {
+      for (const tool of createVecnaTools(services)) {
+        api.registerTool(tool);
+      }
+      api.logger.info("[hawkins] VECNA enabled — registered the vecna_* tools");
+    } else {
+      api.logger.info(
+        "[hawkins] VECNA disabled — vecna_* tools not registered. Set " +
+          "plugins.entries.openclaw-hawkins.config.vecna.enabled=true to enable.",
+      );
     }
 
     // 2. Register the `openclaw hawkins setup` CLI command.
