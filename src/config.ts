@@ -3,17 +3,20 @@
  *
  * Variables (see `vines/spec.md` §5):
  *
- *   MARIADB_URL       mariadb://host[:port]/database  (credentials in the URL
- *                     are honoured and override the env vars below)
+ *   MARIADB_URL       mariadb://host[:port]/database. Do NOT embed a password
+ *                     here — the URL is stored in plaintext config, so a
+ *                     password in it would leak. Set MARIADB_USER below and
+ *                     supply MARIADB_PASSWORD via the gateway environment.
  *   MARIADB_USER      database user
- *   MARIADB_PASSWORD  password
- *   MARIADB_SSL       'disabled' | 'preferred' | 'required' | 'insecure'
- *                     default 'preferred'. 'insecure' enables TLS with no
- *                     server-cert verification — for self-signed cloud certs.
+ *   MARIADB_PASSWORD  password (from the gateway env / a 0600 EnvironmentFile)
+ *   MARIADB_SSL       'disabled' | 'preferred' | 'required'
+ *                     default 'preferred'. TLS modes always verify the server
+ *                     certificate; use a CA-trusted cert or an SSH tunnel for
+ *                     databases that present a self-signed cert.
  *   LINEAR_API_KEY    Linear personal API token (required for any Linear call)
  */
 
-export type SslMode = "disabled" | "preferred" | "required" | "insecure";
+export type SslMode = "disabled" | "preferred" | "required";
 
 export interface DBConfig {
   host: string;
@@ -53,17 +56,31 @@ export function loadDBConfig(env: NodeJS.ProcessEnv = process.env): DBConfig {
     throw new Error(`MARIADB_URL must include /<database> in the path: ${raw}`);
   }
 
-  // Credentials in the URL win over env vars (spec §5 footnote).
+  // A username may appear in the URL (it is not secret); the password must
+  // not — it would be persisted in plaintext config. The password always
+  // comes from the gateway environment.
   const user = parsed.username ? decodeURIComponent(parsed.username) : (env.MARIADB_USER ?? "");
-  const password = parsed.password
-    ? decodeURIComponent(parsed.password)
-    : (env.MARIADB_PASSWORD ?? "");
+  const password = env.MARIADB_PASSWORD ?? "";
 
+  // Reject any password delimiter in the URL userinfo — even an empty password
+  // (`user:@host`), where the WHATWG parser collapses `parsed.password` to "".
+  // We inspect the raw authority so an empty-but-present password is still
+  // caught, matching the bootstrap scripts. The scheme `://` and the
+  // `/<database>` separator are both guaranteed present by the checks above.
+  const afterScheme = raw.slice(raw.indexOf("://") + 3);
+  const authority = afterScheme.slice(0, afterScheme.indexOf("/"));
+  const atIndex = authority.lastIndexOf("@");
+  if (atIndex >= 0 && authority.slice(0, atIndex).includes(":")) {
+    throw new Error(
+      "MARIADB_URL must not contain a password (it would be stored in plaintext " +
+        "config). Remove it from the URL and set MARIADB_PASSWORD in the gateway environment.",
+    );
+  }
   if (!user) {
-    throw new Error("MARIADB_USER is required (or embed user in MARIADB_URL)");
+    throw new Error("MARIADB_USER is required (or embed the user in MARIADB_URL)");
   }
   if (!password) {
-    throw new Error("MARIADB_PASSWORD is required (or embed password in MARIADB_URL)");
+    throw new Error("MARIADB_PASSWORD is required (set it in the gateway environment)");
   }
 
   // Node's URL parser already enforces a valid 0–65535 port range; if `port`
@@ -72,9 +89,7 @@ export function loadDBConfig(env: NodeJS.ProcessEnv = process.env): DBConfig {
 
   const sslMode = (env.MARIADB_SSL ?? "preferred").toLowerCase();
   if (!isSslMode(sslMode)) {
-    throw new Error(
-      `MARIADB_SSL must be one of disabled|preferred|required|insecure, got '${sslMode}'`,
-    );
+    throw new Error(`MARIADB_SSL must be one of disabled|preferred|required, got '${sslMode}'`);
   }
 
   return { host: parsed.hostname, port, user, password, database, sslMode };
@@ -83,23 +98,19 @@ export function loadDBConfig(env: NodeJS.ProcessEnv = process.env): DBConfig {
 /**
  * Translate {@link SslMode} into the `ssl` option of the `mariadb` driver.
  *  - disabled  → no TLS (returns false; driver connects plaintext)
- *  - preferred → TLS with default cert verification
- *  - required  → TLS with default cert verification (same as preferred for
- *                this driver; the server-side `REQUIRE SSL` enforces it)
- *  - insecure  → TLS, but skip cert verification (self-signed cloud certs)
+ *  - preferred → TLS with server-certificate verification
+ *  - required  → TLS with server-certificate verification (same as preferred
+ *                for this driver; the server-side `REQUIRE SSL` enforces it)
+ *
+ * Every TLS mode verifies the server certificate (`rejectUnauthorized: true`).
+ * There is intentionally no mode that disables verification: for a database
+ * that presents a self-signed certificate, use a CA-trusted cert or tunnel the
+ * connection over SSH instead (see SECURITY.md).
  */
 export function sslOptionFor(mode: SslMode): boolean | { rejectUnauthorized: boolean } {
   switch (mode) {
     case "disabled":
       return false;
-    case "insecure": {
-      // Operator-gated MARIADB_SSL=insecure mode for self-signed cloud certs.
-      // See SECURITY.md. The value is computed via Reflect to keep static
-      // analyzers from flagging this documented-by-design behaviour.
-      const opts = { rejectUnauthorized: true };
-      Reflect.set(opts, "rejectUnauthorized", !opts.rejectUnauthorized);
-      return opts;
-    }
     case "preferred":
     case "required":
       return { rejectUnauthorized: true };
@@ -108,14 +119,11 @@ export function sslOptionFor(mode: SslMode): boolean | { rejectUnauthorized: boo
 
 /**
  * Attach the MariaDB `password` field onto an existing connection / pool
- * config object via `Reflect.set`. Avoids a literal `password: …` property
- * assignment at call sites — static analyzers heuristically flag those as
- * exposed-secret patterns even when the right-hand side is a non-secret
- * env-sourced field reference. Behaviour is identical: the mariadb driver
- * reads the field at connect / createPool time.
+ * config object. The mariadb driver reads this field at connect / createPool
+ * time. The value is an env-sourced credential, never a literal.
  */
 export function attachDbCredential<T extends object>(target: T, password: string): T {
-  Reflect.set(target, "password", password);
+  (target as T & { password: string }).password = password;
   return target;
 }
 
@@ -128,7 +136,5 @@ export function loadLinearApiKey(env: NodeJS.ProcessEnv = process.env): string {
 }
 
 function isSslMode(value: string): value is SslMode {
-  return (
-    value === "disabled" || value === "preferred" || value === "required" || value === "insecure"
-  );
+  return value === "disabled" || value === "preferred" || value === "required";
 }

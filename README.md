@@ -94,8 +94,11 @@ Configure the plugin via `openclaw config`:
 ```bash
 openclaw config set plugins.entries.openclaw-hawkins.config.mariadb.url  "mariadb://your-host:3306/hawkins"
 openclaw config set plugins.entries.openclaw-hawkins.config.mariadb.user "hawkins"
-openclaw config set plugins.entries.openclaw-hawkins.config.mariadb.ssl  "insecure"     # for self-signed cloud certs
+openclaw config set plugins.entries.openclaw-hawkins.config.mariadb.ssl  "preferred"    # TLS with cert verification
 # Password MUST come from the gateway env — the plugin schema refuses to store it in openclaw.json.
+# Do NOT put a password in the URL above: it is stored in plaintext config (the plugin rejects one).
+# For a DB that presents a self-signed cert, use a CA-trusted cert or the SSH tunnel below — there is
+# no verification-disabling TLS mode.
 ```
 
 🔒 **Secrets policy:** `MARIADB_PASSWORD` and `LINEAR_API_KEY` are read from the gateway's environment only — never from `openclaw.json`. The plugin's config schema deliberately rejects them. Wire them via a 0600 systemd `EnvironmentFile` (the post-install banner shows the exact recipe), or feed them from 1Password using the SKILL.md recipe.
@@ -108,9 +111,11 @@ autossh -M 0 -N -L 3306:127.0.0.1:3306 user@bastion
 
 # 2. Plugin config — host is the tunnel endpoint, not the remote
 openclaw config set plugins.entries.openclaw-hawkins.config.mariadb.url  "mariadb://127.0.0.1:3306/hawkins"
-openclaw config set plugins.entries.openclaw-hawkins.config.mariadb.ssl  "insecure"
-# `insecure` is the right TLS mode here: the server may still require TLS, but the
-# cert is for the remote hostname, so verifying it against 127.0.0.1 would fail.
+openclaw config set plugins.entries.openclaw-hawkins.config.mariadb.ssl  "disabled"
+# The SSH tunnel already encrypts and authenticates the link, so DB-level TLS to the
+# loopback endpoint is redundant — use `disabled` here. (Don't reach for a mode that
+# skips cert verification: none exists. If you want defence-in-depth TLS through the
+# tunnel, install a cert valid for 127.0.0.1 and use `preferred`.)
 ```
 
 Order the tunnel unit `Before=` your gateway unit so cron jobs that wrap their work in `vines_*`/`vecna_*` find the pool ready on first boot.
@@ -129,7 +134,7 @@ curl -fsSL https://raw.githubusercontent.com/parijatmukherjee/openclaw-hawkins/v
   > ~/.openclaw/workspace/skills/openclaw-hawkins-installer/SKILL.md
 ```
 
-💬 **Step 2.** Ask your agent: _"Install openclaw-hawkins on this host."_
+💬 **Step 2.** Ask your agent — explicitly and by name: _"Install openclaw-hawkins on this host."_ This is a high-impact install (persistent files, a user systemd service, a gateway restart, and a startup-activated plugin), so the agent should confirm the host changes with you before it starts.
 
 ✨ The skill walks the agent through prerequisite checks, repo clone, agent creation, workspace overlay, optional Linear wiring, and end-to-end smoke tests. It asks the personalisation questions (Nexus name, vibe, host facts) before making any changes.
 
@@ -176,7 +181,7 @@ openclaw agent --agent system-agent --message "Introduce yourself in one line." 
 **Optional add-ons:**
 
 - 📋 A **Linear** account (any plan) if you want ticket oversight. The CLI reads its API key from `$LINEAR_API_KEY` by default; if you'd rather keep the key in 1Password, the [`op` CLI](https://developer.1password.com/docs/cli/) is a supported fallback (see `orchestrator/LINEAR.md`). Neither `op` nor a 1Password account is required.
-- 🟢 **Node ≥ 20** + a **MariaDB** instance (local or cloud — TLS supported including self-signed via `MARIADB_SSL=insecure`) if you want **VINES**, the durable-state layer.
+- 🟢 **Node ≥ 20** + a **MariaDB** instance (local or cloud — TLS with certificate verification via `MARIADB_SSL=preferred|required`; for a self-signed cloud DB, use a CA-trusted cert or reach it over an SSH tunnel) if you want **VINES**, the durable-state layer.
 
 ---
 

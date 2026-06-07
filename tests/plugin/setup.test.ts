@@ -49,12 +49,11 @@ const PLUGIN_CONFIG = {
 };
 
 // `MARIADB_PASSWORD` is read by `loadDBConfig` (it's not part of the plugin
-// configSchema). Set a fixture value via bracket notation + non-literal
-// composition so static analyzers don't flag a literal env-var assignment
-// as an exposed-secret pattern.
-const MARIADB_PASS_KEY = `MARIA${"DB_PASSWORD"}`;
+// configSchema), so the test sets a throwaway fixture value for it. This is a
+// non-secret test constant, not a real credential.
+const MARIADB_PASS_KEY = "MARIADB_PASSWORD";
 const ORIGINAL_DB_PASS = process.env[MARIADB_PASS_KEY];
-process.env[MARIADB_PASS_KEY] = ["test", "fixture"].join("-");
+process.env[MARIADB_PASS_KEY] = "test-fixture";
 
 const logs: string[] = [];
 const log = (s: string) => logs.push(s);

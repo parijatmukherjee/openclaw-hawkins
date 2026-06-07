@@ -1,6 +1,6 @@
 {
   "name": "openclaw-hawkins",
-  "version": "1.1.0",
+  "version": "2.0.0",
   "description": "openclaw-hawkins — durable orchestration (VINES) + shared agent memory (VECNA) for OpenClaw. Ships as an OpenClaw plugin and as a standalone CLI.",
   "license": "MIT",
   "author": "Parijat Mukherjee",
@@ -87,8 +87,9 @@
     "format": "prettier --write \"{src,tests}/**/*.{ts,tsx,json,md}\"",
     "format:check": "prettier --check \"{src,tests}/**/*.{ts,tsx,json,md}\"",
     "typecheck": "tsc --noEmit",
+    "guardrails": "bash scripts/check-guardrails.sh",
     "clean": "rm -rf dist coverage .vitest-cache",
-    "prepublishOnly": "npm run clean && npm run lint && npm run test && npm run build"
+    "prepublishOnly": "npm run clean && npm run guardrails && npm run lint && npm run test && npm run build"
   },
   "dependencies": {
     "commander": "^12.1.0",

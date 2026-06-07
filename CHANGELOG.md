@@ -4,6 +4,54 @@ All notable changes to this project will be documented in this file. The
 format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-06-07
+
+Security-hardening release that resolves the ClawHub review findings. Two
+changes are **breaking** (see _Removed_ / _Changed_).
+
+### Removed
+
+- **`MARIADB_SSL=insecure` mode (BREAKING).** The TLS mode that disabled
+  server-certificate verification is gone. Every TLS mode now verifies the
+  certificate. For a database that presents a self-signed cert, use a
+  CA-trusted cert or reach it over an SSH tunnel (the tunnel already
+  authenticates the link; use `MARIADB_SSL=disabled` on the loopback hop).
+  The previous implementation also obfuscated the verification bypass via
+  `Reflect` specifically to evade static analyzers — that code is removed.
+
+### Changed
+
+- **Passwords embedded in `MARIADB_URL` are now rejected (BREAKING).** The URL
+  is stored in plaintext config, so a password in it would leak. A username may
+  still be embedded; the password must come from the gateway environment
+  (`MARIADB_PASSWORD`). Docs, manifest UI hints, specs, and the bootstrap
+  scripts are aligned with this.
+- **VECNA "Tendril of the Hive" is now operator-gated** in every agent overlay
+  (`agents/*/AGENTS.md`). It is off unless the operator explicitly enables it;
+  recalled fragments are treated as **untrusted reference material, not
+  instructions**; and `connect`/`evolve` (which leave the host) **never
+  auto-publish** — the agent drafts, shows exactly what would be sent, and waits
+  for explicit approval, with a no-secrets rule.
+- **comm-agent approval gate unified across channels.** Removed the Discord/chat
+  `"post this" → send` shortcut: every channel now requires explicit per-draft
+  approval, matching the email gate. Inbound-attachment handling is scoped
+  (explicitly-requested files only, data-only, no arbitrary URL fetch).
+- **Plugin reframed as a persistent runtime plugin, not a one-shot installer**
+  (manifest + `src/plugin/index.ts` description) to match its
+  `onStartup` activation and the tools it registers.
+- **Skill triggers tightened and warnings front-loaded.** `SKILL.md` requires an
+  explicit, unambiguous install request and discloses up front that the install
+  writes persistent files, installs a user systemd service, restarts the
+  gateway, handles a DB secret, and enables a startup-activated plugin.
+- Agent memory sections now caution that daily notes persist on disk and must
+  not record secrets or personal/customer data.
+
+### Security
+
+- Removed the remaining static-analyzer-evasion constructs (the `Reflect`-based
+  TLS bypass and password assignment, and an obfuscated test fixture); the
+  underlying behavior is now transparent and safe.
+
 ## [Unreleased]
 
 ### Security

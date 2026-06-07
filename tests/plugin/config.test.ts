@@ -28,7 +28,7 @@ describe("resolveDBConfig", () => {
         mariadb: {
           url: "mariadb://overhost:3307/overdb",
           user: "overuser",
-          ssl: "insecure",
+          ssl: "required",
         },
       },
       BASE_ENV,
@@ -40,7 +40,7 @@ describe("resolveDBConfig", () => {
     // type deliberately excludes the password field.
     expect(cfg.password).toBe("envpass");
     expect(cfg.database).toBe("overdb");
-    expect(cfg.sslMode).toBe("insecure");
+    expect(cfg.sslMode).toBe("required");
   });
 
   it("throws clear error when neither env nor plugin config supplies MARIADB_URL", () => {

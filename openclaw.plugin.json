@@ -1,7 +1,7 @@
 {
   "id": "openclaw-hawkins",
   "name": "OpenClaw Hawkins — VINES + VECNA",
-  "description": "Durable orchestration state (VINES) and shared agent memory (VECNA) for OpenClaw. Provisions a 6-tendril Nexus swarm in one command.",
+  "description": "Persistent runtime plugin for OpenClaw. Activates on gateway startup and registers durable-orchestration (VINES) and shared-agent-memory (VECNA) tools for a 6-tendril Nexus swarm. VECNA is operator-gated: it reads from and writes to a shared knowledge store, so it stays off until an operator explicitly enables it.",
   "activation": {
     "onStartup": true
   },
@@ -24,7 +24,7 @@
   "uiHints": {
     "mariadb.url": {
       "label": "MariaDB URL",
-      "help": "mariadb://<host>[:port]/<database>. Credentials in the URL take precedence over user/password fields."
+      "help": "mariadb://<host>[:port]/<database>. Do NOT put a password in the URL — this value is stored in plaintext config, so an embedded password would leak (the plugin rejects one). A username may be included; the password must come from the gateway environment (MARIADB_PASSWORD)."
     },
     "mariadb.user": {
       "label": "MariaDB user",
@@ -32,7 +32,7 @@
     },
     "mariadb.ssl": {
       "label": "TLS mode",
-      "help": "disabled | preferred | required | insecure. Use insecure only for self-signed cloud DBs you control."
+      "help": "disabled | preferred | required. All TLS modes verify the server certificate. For a database that presents a self-signed cert, use a CA-trusted cert or tunnel over SSH (see SECURITY.md) — there is no verification-disabling mode."
     },
     "autoRecovery": {
       "label": "Auto-recovery",
@@ -56,7 +56,7 @@
           "user": { "type": "string" },
           "ssl": {
             "type": "string",
-            "enum": ["disabled", "preferred", "required", "insecure"]
+            "enum": ["disabled", "preferred", "required"]
           }
         }
       },
