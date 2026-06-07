@@ -4,6 +4,34 @@ All notable changes to this project will be documented in this file. The
 format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.2] - 2026-06-07
+
+Documentation + the two genuinely-actionable findings the full 2.0.1 ClawHub
+scan surfaced (the rest of that scan's delta was scanner non-determinism).
+
+### Fixed
+
+- **`SKILL.md` no longer contradicts itself on `IDENTITY.md`.** The text says an
+  existing Tendril `IDENTITY.md` is preserved, but the documented loop backed up
+  *and overwrote* every one. It now skips an existing `IDENTITY.md` (only creates
+  one when missing), matching the stated "preserve the operator's work" intent.
+  (clawscan SDI-4.)
+- **`INSTALL.md` Linear example no longer models pasting a secret inline.** The
+  `curl` example now reads the token from `$LINEAR_API_KEY` instead of placing it
+  directly in the `Authorization` header. (clawscan SQP-2.)
+
+### Added
+
+- **`UPGRADING.md`** — a 1.x → 2.x migration guide (the two breaking config
+  changes + steps) and the 1.0.x → 1.1.0 auth-by-default note. Linked from the
+  README install section and from SKILL.md's incremental-upgrade path.
+
+### Changed
+
+- Bumped the stale `v1.0.9` / `v1.0.2` clone/curl pins in README, INSTALL, and
+  SECURITY to `v2.0.1` so the manual-install docs no longer point at a
+  pre-hardening release.
+
 ## [2.0.1] - 2026-06-07
 
 Follow-up to the ClawHub review: fixes the genuine findings the v2.0.0 scan

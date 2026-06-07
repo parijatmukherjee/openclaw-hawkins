@@ -17,7 +17,7 @@ Detailed setup for `openclaw-hawkins`. The fast path is `./scripts/setup.sh` the
 Pin to a specific release tag rather than the moving `main` branch:
 
 ```bash
-git clone --branch v1.0.9 --depth 1 https://github.com/parijatmukherjee/openclaw-hawkins.git ~/openclaw-hawkins
+git clone --branch v2.0.1 --depth 1 https://github.com/parijatmukherjee/openclaw-hawkins.git ~/openclaw-hawkins
 cd ~/openclaw-hawkins
 ```
 
@@ -143,9 +143,17 @@ If you want a Linear board where every non-trivial operator request shows up as 
 
 3. Fetch your team ID and workflow state UUIDs:
 
+   Read the key from your environment — don't paste the literal token into the
+   command (it would land in your shell history). Load it without echoing it:
+
    ```bash
+   # Option A — paste once at a silent prompt (not stored in history):
+   read -rs LINEAR_API_KEY && export LINEAR_API_KEY
+   # Option B — pull it straight from 1Password:
+   #   export LINEAR_API_KEY="$(op item get Linear --fields label=token --reveal)"
+
    curl -s -X POST https://api.linear.app/graphql \
-     -H "Authorization: <your-lin_api_key>" \
+     -H "Authorization: $LINEAR_API_KEY" \
      -H "Content-Type: application/json" \
      -d '{"query":"{ teams { nodes { id key name states { nodes { id name type } } } } organization { urlKey } }"}' | jq
    ```
@@ -259,7 +267,7 @@ DB over an SSH tunnel — there is no verification-disabling mode.)
 ### 9.2 Install the library
 
 ```bash
-git clone --branch v1.0.9 --depth 1 https://github.com/parijatmukherjee/openclaw-hawkins.git
+git clone --branch v2.0.1 --depth 1 https://github.com/parijatmukherjee/openclaw-hawkins.git
 cd openclaw-hawkins
 make install        # npm ci / npm install
 make build          # compile TypeScript into dist/

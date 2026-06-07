@@ -74,6 +74,11 @@ Three layers, full vocabulary in [`docs/branding.md`](docs/branding.md):
 
 ## 🚀 Three ways to install
 
+> 🔁 **Already on a 1.x install?** 2.x has two breaking config changes (the
+> verification-skipping `insecure` TLS mode was removed, and a password in
+> `MARIADB_URL` is now rejected). Read **[`UPGRADING.md`](UPGRADING.md)** before
+> upgrading.
+
 ### 🔌 As an OpenClaw plugin (recommended)
 
 ⚡ **Two commands** if you already have OpenClaw ≥ 2026.5.0 and a reachable MariaDB. This is the fastest path and the one you should use unless you specifically want to work from source.
@@ -130,7 +135,7 @@ Order the tunnel unit `Before=` your gateway unit so cron jobs that wrap their w
 
 ```bash
 mkdir -p ~/.openclaw/workspace/skills/openclaw-hawkins-installer
-curl -fsSL https://raw.githubusercontent.com/parijatmukherjee/openclaw-hawkins/v1.0.9/SKILL.md \
+curl -fsSL https://raw.githubusercontent.com/parijatmukherjee/openclaw-hawkins/v2.0.1/SKILL.md \
   > ~/.openclaw/workspace/skills/openclaw-hawkins-installer/SKILL.md
 ```
 
@@ -146,7 +151,7 @@ curl -fsSL https://raw.githubusercontent.com/parijatmukherjee/openclaw-hawkins/v
 
 ```bash
 # 1️⃣ Clone — pin to the latest release tag so the source tree is immutable
-git clone --branch v1.0.9 --depth 1 https://github.com/parijatmukherjee/openclaw-hawkins.git ~/openclaw-hawkins
+git clone --branch v2.0.1 --depth 1 https://github.com/parijatmukherjee/openclaw-hawkins.git ~/openclaw-hawkins
 cd ~/openclaw-hawkins
 
 # 2️⃣ Create the 6 specialist agents
