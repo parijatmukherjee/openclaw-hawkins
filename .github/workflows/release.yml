@@ -136,3 +136,66 @@ jobs:
             --source-commit "${{ github.sha }}" \
             --source-ref "$TAG_RAW" \
             --json
+
+  github-release:
+    name: create GitHub Release
+    # Runs only after npm + ClawHub both succeed, so the release note is never
+    # advertised for a version that failed to publish.
+    needs: publish-clawhub
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # create / edit the GitHub Release for the tag
+    steps:
+      - name: Checkout the tagged commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          fetch-depth: 0
+
+      - name: Create or update the GitHub Release from CHANGELOG.md
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REF_TAG: ${{ github.ref_name }}
+          DISPATCH_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          # On a tag push GITHUB_REF_NAME is the tag; for workflow_dispatch use the input.
+          TAG="$REF_TAG"
+          if [ -n "${DISPATCH_TAG:-}" ]; then TAG="$DISPATCH_TAG"; fi
+          VERSION="${TAG#v}"
+
+          # Pull this version's section out of CHANGELOG.md (Keep a Changelog
+          # format: `## [X.Y.Z] ...` up to the next `## [` header).
+          awk -v ver="$VERSION" '
+            $0 ~ ("^## \\[" ver "\\]") { flag = 1; next }
+            /^## \[/ { if (flag) exit }
+            flag
+          ' CHANGELOG.md > release-notes.md || true
+
+          # A hyphen in the tag (e.g. v1.2.3-rc.1) marks a prerelease.
+          create_flags=(--verify-tag --title "$TAG")
+          case "$TAG" in
+            *-*) create_flags+=(--prerelease) ;;
+            *)   create_flags+=(--latest) ;;
+          esac
+
+          if [ -s release-notes.md ]; then
+            create_flags+=(--notes-file release-notes.md)
+          else
+            echo "::warning::No CHANGELOG section for $VERSION; generating notes from history."
+            create_flags+=(--generate-notes)
+          fi
+
+          # Idempotent: update the note if the release already exists (e.g. a
+          # manual pre-creation or a re-run), otherwise create it.
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists — updating its notes."
+            if [ -s release-notes.md ]; then
+              gh release edit "$TAG" --title "$TAG" --notes-file release-notes.md
+            else
+              gh release edit "$TAG" --title "$TAG"
+            fi
+          else
+            gh release create "$TAG" "${create_flags[@]}"
+          fi
+          echo "GitHub Release ready: $TAG"

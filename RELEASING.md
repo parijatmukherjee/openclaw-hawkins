@@ -74,7 +74,7 @@ publish flags.
    git push origin main --follow-tags
    ```
 
-3. **Watch the workflow.** GitHub Actions → _Release_ run. Two jobs:
+3. **Watch the workflow.** GitHub Actions → _Release_ run. Three jobs:
    - `publish-npm` — verifies the tag matches `package.json#version`,
      runs typecheck + build + coverage, then `npm publish --provenance
      --access public`. Trusted Publishing validates the OIDC token
@@ -82,6 +82,14 @@ publish flags.
    - `publish-clawhub` — runs only if the npm job succeeds. Uses the
      ClawHub reusable workflow with `source =
      parijatmukherjee/openclaw-hawkins@<tag>`.
+   - `github-release` — runs only after both publishes succeed. Creates
+     (or updates, if it already exists) the GitHub Release for the tag,
+     using the matching `## [X.Y.Z]` section of `CHANGELOG.md` as the body.
+     A hyphenated tag (`v1.2.3-rc.1`) is marked as a prerelease; otherwise
+     it is flagged `--latest`. The release title defaults to the tag — edit
+     it in the GitHub UI afterwards if you want a descriptive suffix. So:
+     **keep the `CHANGELOG.md` `[Unreleased]`/version section current before
+     you tag** — that text becomes the published release note.
 
 4. **Verify** after the run goes green:
 
