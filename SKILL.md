@@ -236,12 +236,17 @@ openclaw config set plugins.entries.openclaw-hawkins.config.mariadb.ssl \
   "${MARIADB_SSL:-preferred}"
 
 # 3a. VECNA (shared agent memory) is OFF by default in 2.x — the plugin
-#     registers only the 6 `vines_*` tools. Run the next line ONLY if the
-#     operator explicitly wants shared memory (it reads from / writes to a
-#     knowledge store OUTSIDE this host). Enabling it registers the 6 `vecna_*`
-#     tools (12 total) and means you must also complete the optional "VECNA
-#     Hive" setup phase further below. Otherwise skip this line (VINES-only).
-openclaw config set plugins.entries.openclaw-hawkins.config.vecna.enabled true
+#     registers only the 6 `vines_*` tools. It stays off unless the operator
+#     EXPLICITLY opts in (it reads from / writes to a knowledge store OUTSIDE
+#     this host). The enabling command is guarded below so it does NOT run by
+#     default: it executes only when WANT_VECNA has been set to "true" on an
+#     explicit operator opt-in. Enabling it registers the 6 `vecna_*` tools
+#     (12 total) and means you must also complete the optional "VECNA Hive"
+#     setup phase further below.
+WANT_VECNA=false   # leave false for VINES-only; set true ONLY on explicit operator opt-in
+if [ "$WANT_VECNA" = true ]; then
+  openclaw config set plugins.entries.openclaw-hawkins.config.vecna.enabled true
+fi
 
 # 4. Install MARIADB_PASSWORD into the gateway's environment via a 0600
 #    EnvironmentFile (the secret never sits in openclaw.json).

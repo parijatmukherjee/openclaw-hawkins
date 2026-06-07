@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file. The
 format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.2] - 2026-06-08
+
+### Fixed
+
+- **Removed an opt-in ambiguity the 2.1.1 installer introduced.** SKILL.md
+  showed the `vecna.enabled=true` command as a live line in the default
+  plugin-path block (with only a comment to skip it), which read as enabling
+  VECNA by default — contradicting "VECNA is off unless the operator opts in."
+  The command is now guarded behind an explicit `WANT_VECNA=false` flag so it
+  does not run by default. (clawscan SDI-4 on the 2.1.1 scan.)
+
 ## [2.1.1] - 2026-06-08
 
 Documentation + installer correctness for the 2.1.0 behavior (VECNA off by
