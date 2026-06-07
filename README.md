@@ -137,7 +137,7 @@ Order the tunnel unit `Before=` your gateway unit so cron jobs that wrap their w
 
 ```bash
 mkdir -p ~/.openclaw/workspace/skills/openclaw-hawkins-installer
-curl -fsSL https://raw.githubusercontent.com/parijatmukherjee/openclaw-hawkins/v2.0.1/SKILL.md \
+curl -fsSL https://raw.githubusercontent.com/parijatmukherjee/openclaw-hawkins/v2.1.1/SKILL.md \
   > ~/.openclaw/workspace/skills/openclaw-hawkins-installer/SKILL.md
 ```
 
@@ -153,7 +153,7 @@ curl -fsSL https://raw.githubusercontent.com/parijatmukherjee/openclaw-hawkins/v
 
 ```bash
 # 1️⃣ Clone — pin to the latest release tag so the source tree is immutable
-git clone --branch v2.0.1 --depth 1 https://github.com/parijatmukherjee/openclaw-hawkins.git ~/openclaw-hawkins
+git clone --branch v2.1.1 --depth 1 https://github.com/parijatmukherjee/openclaw-hawkins.git ~/openclaw-hawkins
 cd ~/openclaw-hawkins
 
 # 2️⃣ Create the 6 specialist agents

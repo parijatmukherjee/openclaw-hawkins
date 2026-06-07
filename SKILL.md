@@ -235,6 +235,14 @@ openclaw config set plugins.entries.openclaw-hawkins.config.mariadb.user \
 openclaw config set plugins.entries.openclaw-hawkins.config.mariadb.ssl \
   "${MARIADB_SSL:-preferred}"
 
+# 3a. VECNA (shared agent memory) is OFF by default in 2.x — the plugin
+#     registers only the 6 `vines_*` tools. Run the next line ONLY if the
+#     operator explicitly wants shared memory (it reads from / writes to a
+#     knowledge store OUTSIDE this host). Enabling it registers the 6 `vecna_*`
+#     tools (12 total) and means you must also complete the optional "VECNA
+#     Hive" setup phase further below. Otherwise skip this line (VINES-only).
+openclaw config set plugins.entries.openclaw-hawkins.config.vecna.enabled true
+
 # 4. Install MARIADB_PASSWORD into the gateway's environment via a 0600
 #    EnvironmentFile (the secret never sits in openclaw.json).
 mkdir -p "$HOME/.openclaw/secrets" && chmod 700 "$HOME/.openclaw/secrets"
@@ -257,9 +265,9 @@ openclaw gateway restart
 ```
 
 **Critical** — the gateway restart in step 6 is **not optional**. Without it
-the 12 tools are registered with the runtime but the orchestrator agent
-hasn't re-read its workspace, so it doesn't know the tools exist or in what
-sequence to call them. The symptom (real failure mode I've seen) is the
+the plugin's tools (6 `vines_*`, plus 6 `vecna_*` if you enabled VECNA) are
+registered with the runtime but the orchestrator agent hasn't re-read its
+workspace, so it doesn't know the tools exist or in what sequence to call them. The symptom (real failure mode I've seen) is the
 orchestrator saying "the plugin tools aren't directly accessible yet" and
 falling back to legacy CLI commands. The fix is always: ensure
 `~/.openclaw/workspace/HAWKINS_PROTOCOL.md` is present and the gateway has
@@ -268,17 +276,19 @@ been restarted since it was added.
 **VERIFY (plugin path)**
 
 ```bash
+# Tool count: 6 (VINES only) by default, or 12 if you enabled VECNA above.
 openclaw plugins inspect openclaw-hawkins --runtime --json \
-  | jq -e '.plugin.status=="loaded" and (.plugin.toolNames|length==12)' \
-  && echo "plugin ok" || echo "plugin NOT ok"
+  | jq -e '.plugin.status=="loaded" and (.plugin.toolNames|length|(.==6 or .==12))' \
+  && echo "plugin ok (6 = VINES only, 12 = with VECNA)" || echo "plugin NOT ok"
 
 test -f ~/.openclaw/workspace/HAWKINS_PROTOCOL.md \
   && echo "nexus protocol ok" || echo "nexus protocol MISSING (run: cp <pkg>/orchestrator/HAWKINS_PROTOCOL.md ~/.openclaw/workspace/)"
 
+# Only if you enabled VECNA (step 3a): the vecna_* tools won't exist otherwise.
 openclaw agent --agent system-agent --json --timeout 90 \
   --message "Call vecna_healthz and return only the JSON." \
   | jq -e '.result.payloads[0].text | fromjson | .ok==true and .db=="up"' \
-  && echo "vecna_healthz ok" || echo "vecna_healthz NOT ok"
+  && echo "vecna_healthz ok" || echo "vecna_healthz NOT ok (or VECNA not enabled — expected if VINES-only)"
 
 # Verify the orchestrator agent (not just a specialist) can use the tools.
 # This is the test that catches the protocol-doc-missing failure mode.
@@ -668,7 +678,12 @@ All three must succeed. If any fail, capture the error message into the report a
 
 ### Step 5.6 — VECNA (Hive knowledge sharing, optional)
 
-Activation condition: same as 5.5 (Node ≥ 20 + MariaDB env). Skip otherwise.
+Activation condition: the operator explicitly opted into VECNA **and** the 5.5
+prerequisites hold (Node ≥ 20 + MariaDB env). **Skip this entire step if the
+operator did not opt in** — VECNA is off by default. If you do run it, make sure
+you also set `vecna.enabled=true` in the plugin config (step 3a above); without
+that flag the `vecna_*` tools are never registered, so the Hive server you set
+up here would have no plugin-side callers.
 
 **DETECT**
 

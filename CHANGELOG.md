@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file. The
 format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.1] - 2026-06-08
+
+Documentation + installer correctness for the 2.1.0 behavior (VECNA off by
+default). No runtime code change.
+
+### Fixed
+
+- **The installer (`SKILL.md`) now matches 2.1.0's VECNA gating.** Its
+  verification expected 12 plugin tools and unconditionally probed
+  `vecna_healthz` — both fail on a default (VINES-only) install. It now treats
+  VECNA as the explicit opt-in it is: a clearly-optional `vecna.enabled=true`
+  step, a 6-or-12 tool-count check, and the `vecna_healthz` / Hive-setup steps
+  gated on opting in.
+
+### Changed
+
+- Bumped the doc clone/curl pins (README, INSTALL, SECURITY) to `v2.1.1` now
+  that 2.1.x is the published, clean-scanning release.
+
 ## [2.1.0] - 2026-06-07
 
 Security hardening driven by the ClawHub behavioral (clawscan) review, plus the
