@@ -62,7 +62,14 @@ export function loadDBConfig(env: NodeJS.ProcessEnv = process.env): DBConfig {
   const user = parsed.username ? decodeURIComponent(parsed.username) : (env.MARIADB_USER ?? "");
   const password = env.MARIADB_PASSWORD ?? "";
 
-  if (parsed.password) {
+  // Reject any password delimiter in the URL userinfo — even an empty password
+  // (`user:@host`), where the WHATWG parser collapses `parsed.password` to "".
+  // We inspect the raw authority so an empty-but-present password is still
+  // caught, matching the bootstrap scripts.
+  const authority = raw.replace(/^[^:]+:\/\//, "").split(/[/?#]/, 1)[0] ?? "";
+  const atIndex = authority.lastIndexOf("@");
+  const rawUserinfo = atIndex >= 0 ? authority.slice(0, atIndex) : "";
+  if (rawUserinfo.includes(":")) {
     throw new Error(
       "MARIADB_URL must not contain a password (it would be stored in plaintext " +
         "config). Remove it from the URL and set MARIADB_PASSWORD in the gateway environment.",

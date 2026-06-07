@@ -48,6 +48,25 @@ describe("loadDBConfig", () => {
     ).toThrow(/must not contain a password/);
   });
 
+  it("rejects an empty password delimiter in the URL (user:@host)", () => {
+    // WHATWG collapses the empty password to "", so a naive truthy check would
+    // miss this — the presence of the ':' delimiter must still be rejected.
+    expect(() =>
+      loadDBConfig(
+        withEnv({ MARIADB_URL: "mariadb://urluser:@h/db", MARIADB_PASSWORD: "env-pass" }),
+      ),
+    ).toThrow(/must not contain a password/);
+  });
+
+  it("accepts a username-only URL whose value contains an encoded colon", () => {
+    // A ':' inside the *username* must be percent-encoded (%3A); the raw
+    // userinfo then has no literal ':' delimiter, so it is allowed.
+    const cfg = loadDBConfig(
+      withEnv({ MARIADB_URL: "mariadb://u%3Av@h/db", MARIADB_PASSWORD: "p" }),
+    );
+    expect(cfg.user).toBe("u:v");
+  });
+
   it("URL username is percent-decoded", () => {
     const cfg = loadDBConfig(
       withEnv({ MARIADB_URL: "mariadb://u%40v@h/db", MARIADB_PASSWORD: "p!ss" }),
