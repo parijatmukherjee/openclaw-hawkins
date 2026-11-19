@@ -67,7 +67,7 @@ export function createServer(opts: ServerOptions): Express {
   app.get(
     "/v1/recall/:topic",
     asyncHandler(async (req, res) => {
-      const topic = req.params.topic;
+      const topic = paramString(req.params.topic, "topic");
       const ticket = stringQuery(req, "ticket") ?? undefined;
       const limit = intQuery(req, "limit") ?? undefined;
       const format = stringQuery(req, "format") ?? "json";
@@ -109,8 +109,9 @@ export function createServer(opts: ServerOptions): Express {
   app.get(
     "/v1/fragments/:id",
     asyncHandler(async (req, res) => {
-      const fragment = await opts.store.getFragment(req.params.id);
-      if (!fragment) throw httpError(404, "not_found", `no such fragment: ${req.params.id}`);
+      const id = paramString(req.params.id, "id");
+      const fragment = await opts.store.getFragment(id);
+      if (!fragment) throw httpError(404, "not_found", `no such fragment: ${id}`);
       res.json(fragment);
     }),
   );
@@ -122,8 +123,9 @@ export function createServer(opts: ServerOptions): Express {
     "/v1/evolve/:id",
     asyncHandler(async (req, res, next) => {
       const input = parseEvolve(req.body);
+      const id = paramString(req.params.id, "id");
       try {
-        const result = await opts.store.evolve(req.params.id, input);
+        const result = await opts.store.evolve(id, input);
         narrate("Evolving knowledge", {
           deprecated: result.deprecated.fragmentId,
           replacement: result.replacement.fragmentId,
@@ -228,6 +230,15 @@ function parseEvolve(body: unknown): EvolveInput {
 
 function isObject(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+// Express 5's route-param types allow `string[]` (repeated-param routes like
+// `:id*`), but none of our routes use that syntax — narrow defensively.
+function paramString(value: string | string[] | undefined, name: string): string {
+  if (typeof value !== "string") {
+    throw httpError(400, `bad_${name}`, `${name} must be a single path segment`);
+  }
+  return value;
 }
 
 function stringQuery(req: Request, key: string): string | null {

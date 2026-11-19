@@ -14,7 +14,6 @@
  */
 import { jsonResult } from "openclaw/plugin-sdk/core";
 import type { AnyAgentTool } from "openclaw/plugin-sdk/core";
-import type { AgentToolResult } from "@mariozechner/pi-agent-core";
 import type { Static, TSchema } from "typebox";
 import { Type } from "typebox";
 import type { LedgerState } from "../types.js";
@@ -67,6 +66,12 @@ const VinesStatusParams = Type.Object({
   orchestrationId: Type.String({ minLength: 1, maxLength: 64 }),
 });
 
+// openclaw's plugin-sdk doesn't publicly export AgentToolResult (and the
+// @mariozechner/pi-agent-core package it used to come from is no longer a
+// dependency as of openclaw 2026.11), so derive the shape from AnyAgentTool
+// itself rather than depending on an unexported/removed type.
+type ToolExecuteResult = Awaited<ReturnType<AnyAgentTool["execute"]>>;
+
 function buildTool<T extends TSchema>(
   name: string,
   label: string,
@@ -76,7 +81,7 @@ function buildTool<T extends TSchema>(
     toolCallId: string,
     params: Static<T>,
     signal?: AbortSignal,
-  ) => Promise<AgentToolResult<unknown>>,
+  ) => Promise<ToolExecuteResult>,
 ): AnyAgentTool {
   const tool: AnyAgentTool = {
     name,

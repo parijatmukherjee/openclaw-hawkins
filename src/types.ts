@@ -13,12 +13,7 @@ export const UNFINISHED_STATES: ReadonlyArray<LedgerState> = ["init", "planning"
 
 /** Specialist agent identifiers — must match the directory names under `agents/`. */
 export type SpecialistId =
-  | "research-agent"
-  | "system-agent"
-  | "code-agent"
-  | "data-agent"
-  | "comm-agent"
-  | "vision-agent";
+  "research-agent" | "system-agent" | "code-agent" | "data-agent" | "comm-agent" | "vision-agent";
 
 export const VALID_SPECIALISTS: ReadonlySet<SpecialistId> = new Set<SpecialistId>([
   "research-agent",

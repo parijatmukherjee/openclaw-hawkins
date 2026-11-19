@@ -2,17 +2,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../src/persistence.js", () => {
   return {
-    Ledger: vi.fn().mockImplementation(() => ({
-      close: vi.fn(async () => undefined),
-    })),
+    Ledger: vi.fn().mockImplementation(function () {
+      return { close: vi.fn(async () => undefined) };
+    }),
   };
 });
 
 vi.mock("../../src/hive/store.js", () => {
   return {
-    HiveStore: vi.fn().mockImplementation(() => ({
-      close: vi.fn(async () => undefined),
-    })),
+    HiveStore: vi.fn().mockImplementation(function () {
+      return { close: vi.fn(async () => undefined) };
+    }),
   };
 });
 

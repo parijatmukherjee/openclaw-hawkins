@@ -59,7 +59,7 @@ export class LinearClient {
       });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      throw new Error(`Linear API unreachable: ${msg}`);
+      throw new Error(`Linear API unreachable: ${msg}`, { cause: err });
     } finally {
       clearTimeout(timer);
     }

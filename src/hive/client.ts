@@ -127,7 +127,7 @@ export class HiveTendril {
       response = await this.fetchImpl(url, init);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      throw new Error(`hive_unreachable: ${msg} (${method} ${url})`);
+      throw new Error(`hive_unreachable: ${msg} (${method} ${url})`, { cause: err });
     } finally {
       clearTimeout(timer);
     }

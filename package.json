@@ -93,8 +93,8 @@
     "prepublishOnly": "npm run clean && npm run guardrails && npm run lint && npm run test && npm run build"
   },
   "dependencies": {
-    "commander": "^12.1.0",
-    "express": "^4.21.0",
+    "commander": "^15.1.0",
+    "express": "^5.3.0",
     "mariadb": "^3.4.0",
     "typebox": "^1.1.38"
   },
@@ -107,17 +107,18 @@
     }
   },
   "devDependencies": {
-    "@types/express": "^4.17.21",
+    "@eslint/js": "^10.0.1",
+    "@types/express": "^5.0.6",
     "@types/node": "^22.0.0",
-    "@types/supertest": "^6.0.2",
-    "@vitest/coverage-v8": "^2.1.0",
-    "eslint": "^9.9.0",
-    "globals": "^15.9.0",
+    "@types/supertest": "^7.2.1",
+    "@vitest/coverage-v8": "^5.1.1",
+    "eslint": "^10.15.0",
+    "globals": "^17.14.0",
     "openclaw": "^2026.5.7",
     "prettier": "^3.3.0",
     "supertest": "^7.0.0",
     "typescript": "^5.5.0",
     "typescript-eslint": "^8.0.0",
-    "vitest": "^2.1.0"
+    "vitest": "^5.1.1"
   }
 }
