@@ -7,9 +7,10 @@
     "skillspector/SDI-*": "Scope judgments: the package is an installer that provisions a 6-agent orchestration runtime (VINES/VECNA/Linear CLIs). Disclosed and purpose-aligned; not scope creep.",
     "skillspector/SQP-1": "Skill descriptions are broad by design for routing; acceptable.",
     "skillspector/RA2/INSTALL.md": "Persistent systemd service + agent install are intentional, disclosed setup behavior.",
-    "removed-in-2.0.1": "skillspector SQP-2 on src/plugin/setup.ts, src/plugin/tools.ts, and skills/vision-agent-skill/SKILL.md, plus the clawscan 'unexpected' setup.ts finding, were addressed — they are intentionally absent so a reappearance is flagged."
+    "removed-in-2.0.1": "skillspector SQP-2 on src/plugin/setup.ts, src/plugin/tools.ts, and skills/vision-agent-skill/SKILL.md, plus the clawscan 'unexpected' setup.ts finding, were addressed — they are intentionally absent so a reappearance is flagged.",
+    "clawscan/SQP-2/src/orchestrator.ts (2.1.2)": "ACCEPTED — 'Linear and VINES persistence are expected, but src/orchestrator.ts and protocol examples can copy raw objectives, research output, and specialist replies into external tickets or ledgers without an enforced redaction or consent gate.' Linear/VINES persistence of task content is the stated purpose of the package (durable orchestration state + optional Linear oversight), and SECURITY.md/HAWKINS_PROTOCOL.md already instruct operators not to route secrets or sensitive customer data through objectives, specialist prompts, Linear tickets, or VECNA fragments. Accepted as disclosed, purpose-aligned behavior rather than a code defect; raised clawscanUnexpectedMax from 0 to 1 to admit it. Revisit if an enforced redaction/consent gate is ever added to orchestrator.ts — this note should be removed and the max lowered back to 0."
   },
-  "clawscanUnexpectedMax": 0,
+  "clawscanUnexpectedMax": 1,
   "acceptedFindings": [
     "static/exposed_secret_literal/src/config.ts",
     "static/exposed_secret_literal/src/hive/config.ts",
