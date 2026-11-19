@@ -59,6 +59,22 @@ jobs:
           fi
           echo "OK: tag v$TAG matches package.json v$PKG"
 
+      # Lets a workflow_dispatch re-run retry a downstream job alone (e.g.
+      # ClawHub failed last time, npm didn't): npm registries reject
+      # re-publishing an existing version, so detect that case up front
+      # instead of letting `npm publish` fail the whole run on a retry.
+      - name: Check whether this version is already on npm
+        id: npm-check
+        run: |
+          set -euo pipefail
+          PKG=$(node -p "require('./package.json').version")
+          if npm view "openclaw-hawkins@$PKG" version >/dev/null 2>&1; then
+            echo "already_published=true" >> "$GITHUB_OUTPUT"
+            echo "openclaw-hawkins@$PKG is already on npm — skipping npm publish (rebuilding the tarball below so ClawHub still gets the same artifact)."
+          else
+            echo "already_published=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Install dependencies (frozen lockfile)
         run: npm ci
 
@@ -75,6 +91,7 @@ jobs:
           ls -lh openclaw-hawkins-*.tgz
 
       - name: Publish to npm (Trusted Publishing + provenance)
+        if: steps.npm-check.outputs.already_published != 'true'
         run: npm publish --provenance --access public
 
       - name: Upload tarball as workflow artifact (audit)
@@ -118,7 +135,26 @@ jobs:
           chmod 600 "$RUNNER_TEMP/clawhub-config.json"
           echo "CLAWHUB_CONFIG_PATH=$RUNNER_TEMP/clawhub-config.json" >> "$GITHUB_ENV"
 
+      # Mirrors the npm idempotency check: lets a retry (e.g. after the
+      # Publish step below succeeded but a later job in the same run failed)
+      # skip re-publishing instead of erroring on an already-published version.
+      - name: Check whether this version is already on ClawHub
+        id: clawhub-check
+        run: |
+          set -euo pipefail
+          TAG_RAW="${GITHUB_REF_NAME:-${{ inputs.tag }}}"
+          VERSION="${TAG_RAW#v}"
+          STATE=$(clawhub package publication openclaw-hawkins --version "$VERSION" --json | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).state")
+          if [ "$STATE" = "published" ]; then
+            echo "already_published=true" >> "$GITHUB_OUTPUT"
+            echo "openclaw-hawkins@$VERSION is already published on ClawHub — skipping."
+          else
+            echo "already_published=false" >> "$GITHUB_OUTPUT"
+            echo "ClawHub state for openclaw-hawkins@$VERSION: $STATE"
+          fi
+
       - name: Publish to ClawHub
+        if: steps.clawhub-check.outputs.already_published != 'true'
         run: |
           set -euo pipefail
           TAG_RAW="${GITHUB_REF_NAME:-${{ inputs.tag }}}"
