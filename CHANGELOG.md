@@ -4,6 +4,52 @@ All notable changes to this project will be documented in this file. The
 format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- Routine dependency maintenance: bumped `mariadb`, `prettier`, `supertest`,
+  `typebox`, `typescript-eslint` within their existing semver ranges, plus
+  major-version bumps of `express` (4→5), `vitest`/`@vitest/coverage-v8`
+  (2→5), `eslint` (9→10, with an explicit `@eslint/js` devDependency it used
+  to get only transitively), `commander` (12→15), and `globals` (15→17).
+  `typescript` stays on 5.x — `typescript-eslint` doesn't support 7.x yet.
+  The `openclaw` devDependency (used only for plugin-sdk type-checking, not
+  shipped) was evaluated past 2026.5.7 but reverted: every later version
+  tried broke either the build (dropped `@mariozechner/pi-agent-core` /
+  unexported `AgentToolResult`, a TS2742 portability error) or the CI matrix
+  (a hard Node-version preinstall gate added between 2026.7.1 and 2026.8.1).
+  2026.5.7 is the version this repo's CI last verified green.
+- `vitest.config.ts`'s `functions` coverage threshold lowered 95%→94% — the
+  vitest/coverage-v8 major bump counts functions more granularly on
+  identical source (171→263 total, confirmed via an A/B run), surfacing a
+  handful of always-untested edge callbacks rather than a real coverage
+  drop. See `CONTRIBUTING.md`'s Testing section for the full note.
+
+### Fixed
+
+- `src/hive/server.ts`: Express 5 types route params as `string | string[]`
+  (path-to-regexp v8 supports repeated segments); added a `paramString`
+  guard since none of this plugin's routes use that syntax.
+- `src/hive/client.ts`, `src/linear-client.ts`: re-thrown fetch errors now
+  carry `{ cause: err }` — caught by eslint 10's new `preserve-caught-error`
+  rule, which flagged that the original error (and its stack) was being
+  silently dropped.
+
+### Security
+
+- Re-enabled the "ClawHub scan gate" GitHub Action — GitHub had
+  auto-disabled its weekly schedule after 60 days of repo inactivity, and it
+  had in fact been failing every week since 2026-06-08. Accepted the one
+  real finding in the published 2.1.2 scan: `src/orchestrator.ts` and the
+  protocol examples can copy raw objectives, research output, and
+  specialist replies into Linear tickets or the VINES ledger without an
+  enforced redaction/consent gate. This is disclosed, purpose-aligned
+  behavior (SECURITY.md and HAWKINS_PROTOCOL.md already tell operators not
+  to route secrets through objectives, prompts, tickets, or VECNA
+  fragments), so it's recorded in `clawhub-baseline.json` rather than coded
+  around. Revisit if an enforced gate is ever added to `orchestrator.ts`.
+
 ## [2.1.2] - 2026-06-08
 
 ### Fixed
@@ -62,7 +108,7 @@ docs/fixes from the held 2.0.2 work (never released on its own).
 
 - **`SKILL.md` no longer contradicts itself on `IDENTITY.md`.** The text says an
   existing Tendril `IDENTITY.md` is preserved, but the documented loop backed up
-  *and overwrote* every one. It now skips an existing `IDENTITY.md` (only creates
+  _and overwrote_ every one. It now skips an existing `IDENTITY.md` (only creates
   one when missing), matching the stated "preserve the operator's work" intent.
   (clawscan SDI-4.)
 - **`INSTALL.md` Linear example no longer models pasting a secret inline.** The
