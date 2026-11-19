@@ -50,7 +50,15 @@ jobs:
       - name: Verify tag matches package.json version
         run: |
           set -euo pipefail
-          TAG_RAW="${GITHUB_REF_NAME:-${{ inputs.tag }}}"
+          # GITHUB_REF_NAME is always set by the runner (it's the branch, e.g.
+          # "main", on a workflow_dispatch run) — a bash `:-` fallback never
+          # sees it as empty, so `inputs.tag` was never actually used on a
+          # manual retry. Branch on the event name instead.
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG_RAW="${{ inputs.tag }}"
+          else
+            TAG_RAW="$GITHUB_REF_NAME"
+          fi
           TAG="${TAG_RAW#v}"
           PKG=$(node -p "require('./package.json').version")
           if [ "$TAG" != "$PKG" ]; then
@@ -142,7 +150,15 @@ jobs:
         id: clawhub-check
         run: |
           set -euo pipefail
-          TAG_RAW="${GITHUB_REF_NAME:-${{ inputs.tag }}}"
+          # GITHUB_REF_NAME is always set by the runner (it's the branch, e.g.
+          # "main", on a workflow_dispatch run) — a bash `:-` fallback never
+          # sees it as empty, so `inputs.tag` was never actually used on a
+          # manual retry. Branch on the event name instead.
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG_RAW="${{ inputs.tag }}"
+          else
+            TAG_RAW="$GITHUB_REF_NAME"
+          fi
           VERSION="${TAG_RAW#v}"
           STATE=$(clawhub package publication openclaw-hawkins --version "$VERSION" --json | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).state")
           if [ "$STATE" = "published" ]; then
@@ -157,7 +173,15 @@ jobs:
         if: steps.clawhub-check.outputs.already_published != 'true'
         run: |
           set -euo pipefail
-          TAG_RAW="${GITHUB_REF_NAME:-${{ inputs.tag }}}"
+          # GITHUB_REF_NAME is always set by the runner (it's the branch, e.g.
+          # "main", on a workflow_dispatch run) — a bash `:-` fallback never
+          # sees it as empty, so `inputs.tag` was never actually used on a
+          # manual retry. Branch on the event name instead.
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG_RAW="${{ inputs.tag }}"
+          else
+            TAG_RAW="$GITHUB_REF_NAME"
+          fi
           VERSION="${TAG_RAW#v}"
           # NOTE: --family is intentionally NOT set. The first ClawHub publish
           # (v1.0.1) was auto-detected as `bundle-plugin` because this repo's
